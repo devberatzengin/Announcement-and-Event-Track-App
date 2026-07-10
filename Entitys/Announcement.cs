@@ -23,8 +23,12 @@ public class Announcement
     [MaxLength(500, ErrorMessage = "Description is too long")]
     public String Content { get; set; } = String.Empty;
     
-    //[Required(ErrorMessage ="Announcement could be created by someone")]
-    //public User createdBy { get; set; }
+    [Required]
+    [Column("created_by_user_id")]
+    public Guid CreatedByUserId { get; set; } 
+    
+    [ForeignKey(nameof(CreatedByUserId))]
+    public User CreatedBy { get; set; } = null!;
     
     [Column("category_id")]
     public Guid CategoryId { get; set; }
@@ -41,7 +45,7 @@ public class Announcement
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     
-    [Column("created")]
+    [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
 }   
