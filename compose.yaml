@@ -1,0 +1,23 @@
+﻿services:
+  announcement-and-event-track-app:
+    image: announcement-and-event-track-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: corporate_event_postgres
+    environment:
+      POSTGRES_USER: berat_admin
+      POSTGRES_PASSWORD: SecretPassword123!
+      POSTGRES_DB: CorporateEventManagementDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+
+volumes:
+  postgres_data:
