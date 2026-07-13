@@ -14,22 +14,16 @@ public class Event
     public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
-    [Column("name")]
     public string Name { get; set; }  = "Event Default Name";
     
-    [Required(ErrorMessage = "Description is required")]
-    [Column("description")]
     public string Description { get; set; } = "Event Description";
     
-    [Required(ErrorMessage = "Location is required")]
-    [Column("location")]
     public string Location { get; set; } = "Event Location";
     
-    [Required(ErrorMessage = "Start date is required")]
-    [Column("start_date")]
+    [Required]
     public DateTime StartDate { get; set; } = DateTime.Today;
     
-    [Column("end_date")]
+    [Required]
     public DateTime EndDate { get; set; } = DateTime.Today;
     
     [Required]
@@ -39,16 +33,10 @@ public class Event
     [ForeignKey(nameof(CategoryId))]
     public Category Category { get; set; } = null!;
     
-    [Column("is_active")]
+    
     public bool IsActive { get; set; } = true;
-
-    [Column("is_deleted")]
     public bool IsDeleted { get; set; } = false;
-    
-    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.Now;
-    
-    [Column("created")]
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
     
 }

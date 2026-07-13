@@ -10,20 +10,29 @@ public class User
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public Guid Id { get; set; } =  Guid.NewGuid();
     
-    [Required(ErrorMessage = "Username is required")]
-    public String Username { get; set; } = String.Empty;
+    [Required]
+    public string Username { get; set; } = string.Empty;
     
-    [Required(ErrorMessage = "Password is required")]
-    public String Password { get; set; } = String.Empty;
+    [Required]
+    public string Password { get; set; } = string.Empty;
     
-    [Required(ErrorMessage =  "Email is required")]
-    public String Email { get; set; } = String.Empty;
+    [Required]
+    public string Email { get; set; } = string.Empty;
     
-    [Required(ErrorMessage = "Confirm Password is required")]
-    [MaxLength(20),MinLength(2)]
-    public String FirstName { get; set; } = String.Empty;
+    [MaxLength(20)] 
+    public string FirstName { get; set; } = string.Empty;
     
-    public String LastName { get; set; } = String.Empty;
+    [MaxLength(20)] 
+    public string LastName { get; set; } = string.Empty;
     
-    public String PhoneNumber { get; set; } = String.Empty;
+    [Phone]
+    public string PhoneNumber { get; set; } = string.Empty;
+    
+    
+    
+    public bool IsActive { get; set; } = true;
+    public bool IsDeleted { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
 }

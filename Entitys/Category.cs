@@ -13,16 +13,17 @@ public class Category
     [Key]
     [Required]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public Guid Id { get; set; } = new Guid();
+    public Guid Id { get; set; } = Guid.NewGuid();
     
-    [Required(ErrorMessage = "Name is required")]
-    [MaxLength(20), MinLength(3)] 
-    public String Name { get; set; } =  string.Empty;
+    [MaxLength(20)] 
+    public string Name { get; set; } =  string.Empty;
     
     public CategoryType Type { get; set;} = CategoryType.Undefined;
     
-    [Column("is_active")]
     public bool IsActive { get; set; } = true;
+    public bool IsDeleted { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
     
     [JsonIgnore]
     public ICollection<Event> Events { get; set; } = new List<Event>();

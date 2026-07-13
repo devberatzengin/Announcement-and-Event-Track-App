@@ -9,19 +9,19 @@ namespace Announcement_and_Event_Track_App.Entitys;
 public class Announcement
 {
 
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    [Required]
-    [Column("id")]
+    [Key] // Primary Key
+    [DatabaseGenerated(DatabaseGeneratedOption.None)] // Uuid Db'de üretilmez
+    [Required] // Not Null
     public Guid Id { get; set; }  = Guid.NewGuid();
     
-    [Required(ErrorMessage =  "Title is required")]
-    [MaxLength(100)]
-    [MinLength(5)]
-    public String Title { get; set; } = String.Empty;
+    [Required]
+    [MaxLength(100)] // varchar(100)
+    public string Title { get; set; } = string.Empty;
 
-    [MaxLength(500, ErrorMessage = "Description is too long")]
-    public String Content { get; set; } = String.Empty;
+    [MaxLength(500)] // varchar(500)
+    public String Content { get; set; } = string.Empty;
+    
+    
     
     [Required]
     [Column("created_by_user_id")]
@@ -36,6 +36,8 @@ public class Announcement
     [ForeignKey(nameof(CategoryId))]
     public Category Category { get; set; } = null!;
 
+    
+    
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
 
@@ -43,9 +45,9 @@ public class Announcement
     public bool IsDeleted { get; set; } = false;
     
     [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     [Column("updated_at")]
-    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
 }   
