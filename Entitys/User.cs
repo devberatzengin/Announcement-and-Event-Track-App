@@ -10,9 +10,9 @@ public class User
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public Guid Id { get; set; } =  Guid.NewGuid();
-    
-    [Required]
-    public UserType Type { get; set; }
+
+    [Required] 
+    public UserType Type { get; set; } = UserType.Unknown;
     
     [Required]
     public string Username { get; set; } = string.Empty;
