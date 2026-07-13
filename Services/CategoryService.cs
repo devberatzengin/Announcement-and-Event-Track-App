@@ -97,7 +97,7 @@ public class CategoryService : ICategoryService
     public async Task<Response?> UpdateAsync(UpdateRequest updateRequest)
     {
         var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == updateRequest.Id);
-        
+
         if (category is null)
             return null;
         
@@ -124,10 +124,14 @@ public class CategoryService : ICategoryService
 
     public async Task<Response?> DeactivateAsync(Guid categoryId)
     {
-        var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
-        
+        var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == categoryId); 
+        Console.WriteLine(category.Id);
+
+
         if (category is null)
             return null;
+        
+        
         
         category.IsActive = false;
         category.UpdatedAt = DateTime.UtcNow;

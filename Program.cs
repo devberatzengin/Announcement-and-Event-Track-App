@@ -1,7 +1,9 @@
 using Announcement_and_Event_Track_App.Data;
 using Announcement_and_Event_Track_App.Services;
-using Announcement_and_Event_Track_App.Services.Impl;
+using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+
 
 namespace Announcement_and_Event_Track_App;
 
@@ -13,23 +15,28 @@ public class Program
 
         // Add services to the container.
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddOpenApi();
+        builder.Services.AddSwaggerGen();
         
         // Db Connections
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
     
         // Services
-        builder.Services.AddScoped<IAnnouncementService,AnnouncementService>();
+        builder.Services.AddScoped<ICategoryService, CategoryService>();
+        
         
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
-            app.MapOpenApi();
+            app.UseSwagger();
+            app.UseSwaggerUI();
         }
 
         app.UseHttpsRedirection();
