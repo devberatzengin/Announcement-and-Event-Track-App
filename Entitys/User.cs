@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 
 namespace Announcement_and_Event_Track_App.Entitys;
 
@@ -9,6 +10,9 @@ public class User
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public Guid Id { get; set; } =  Guid.NewGuid();
+    
+    [Required]
+    public UserType Type { get; set; }
     
     [Required]
     public string Username { get; set; } = string.Empty;
@@ -26,6 +30,7 @@ public class User
     public string LastName { get; set; } = string.Empty;
     
     [Phone]
+    [MaxLength(20)]
     public string PhoneNumber { get; set; } = string.Empty;
     
     

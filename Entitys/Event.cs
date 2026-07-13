@@ -14,11 +14,11 @@ public class Event
     public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
-    public string Name { get; set; }  = "Event Default Name";
+    public string Name { get; set; }  = string.Empty;
     
-    public string Description { get; set; } = "Event Description";
-    
-    public string Location { get; set; } = "Event Location";
+    public string Description { get; set; } = string.Empty;
+
+    public string Location { get; set; } = string.Empty;
     
     [Required]
     public DateTime StartDate { get; set; } = DateTime.Today;
@@ -27,11 +27,10 @@ public class Event
     public DateTime EndDate { get; set; } = DateTime.Today;
     
     [Required]
-    [Column("category_id")]
     public Guid CategoryId { get; set; }
-
-    [ForeignKey(nameof(CategoryId))]
-    public Category Category { get; set; } = null!;
+    
+    [Required]
+    public Category Category { get; set; }
     
     
     public bool IsActive { get; set; } = true;

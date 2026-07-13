@@ -24,18 +24,11 @@ public class Announcement
     
     
     [Required]
-    [Column("created_by_user_id")]
     public Guid CreatedByUserId { get; set; } 
-    
-    [ForeignKey(nameof(CreatedByUserId))]
     public User CreatedBy { get; set; } = null!;
     
-    [Column("category_id")]
     public Guid CategoryId { get; set; }
-
-    [ForeignKey(nameof(CategoryId))]
     public Category Category { get; set; } = null!;
-
     
     
     [Column("is_active")]
