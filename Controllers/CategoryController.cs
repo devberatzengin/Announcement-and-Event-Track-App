@@ -34,22 +34,21 @@ public class CategoryController
 
     [HttpGet("{id}")]
     public async Task<Response> GetById(
-        Guid id,                                              // route'tan gelir: /api/category/3fa8...
-        [FromQuery] bool includeUnactivated = false)          // query string'den: ?includeUnactivated=true
+        Guid id,                                              
+        [FromQuery] bool includeUnactivated = false)          
     {
         return await _categoryService.GetByIdAsync(id, includeUnactivated);
         
     }
 
-    //[HttpPut]
-    /*
+    [HttpPut]
     public async Task<Response?> UpdateAsync(UpdateRequest updateRequest)
     {
         return await _categoryService.UpdateAsync(updateRequest);
     }
-    */
+    
 
-    [HttpPatch("{id}/deactivate")]                // PATCH api/category/3fa8.../deactivate
+    [HttpPatch("{id}/deactivate")]
     public async Task<Response> Deactivate(Guid id)
     {
         return await _categoryService.DeactivateAsync(id);
