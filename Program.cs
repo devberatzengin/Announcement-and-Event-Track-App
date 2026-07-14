@@ -20,7 +20,11 @@ public class Program
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+        builder.Services.AddSwaggerGen(c =>
+        {
+            c.CustomSchemaIds(type => type.FullName);
+        });
+
         
         // Db Connections
         builder.Services.AddDbContext<AppDbContext>(options =>
@@ -28,6 +32,7 @@ public class Program
     
         // Services
         builder.Services.AddScoped<ICategoryService, CategoryService>();
+        builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
         
         
         var app = builder.Build();
