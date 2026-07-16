@@ -13,9 +13,11 @@ public class CategoryService : ICategoryService
 {
     
     private readonly AppDbContext _dbContext;
-    public CategoryService(AppDbContext dbContext)
+    private readonly ILogger<AnnouncementService> _logger;
+    public CategoryService(AppDbContext dbContext, ILogger<AnnouncementService> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
     
     
@@ -40,6 +42,13 @@ public class CategoryService : ICategoryService
         
         _dbContext.Categories.Add(newCategory);
         await _dbContext.SaveChangesAsync();
+        
+        _logger.LogInformation("Category created {@newCategory.id}", newCategory.Id);
+        // _logger.LogCritical("Category created {newCategory.id}", newCategory.Id);
+        // _logger.LogDebug("Category created {newCategory.id}", newCategory.Id);
+        // _logger.LogError("Category created {newCategory.id}", newCategory.Id);
+        // _logger.LogTrace("Category created {newCategory.id}", newCategory.Id);
+        // _logger.LogWarning("Category created {newCategory.id}", newCategory.Id);
         return new Response
         {
             Id = newCategory.Id,

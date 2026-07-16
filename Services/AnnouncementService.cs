@@ -10,8 +10,10 @@ namespace Announcement_and_Event_Track_App.Services;
 public class AnnouncementService : IAnnouncementService
 {
     private readonly AppDbContext _dbContext;
-    public AnnouncementService(AppDbContext dbContext)
+    private readonly ILogger<AnnouncementService> _logger;
+    public AnnouncementService(AppDbContext dbContext, ILogger<AnnouncementService> logger)
     {
+        _logger = logger;
         _dbContext = dbContext;
     }
     
@@ -42,6 +44,7 @@ public class AnnouncementService : IAnnouncementService
     
     public async Task<List<Response>> GetAllAsync(bool includeUnactivated = false)
     {
+        _logger.LogInformation("Getting all announcements");
         var announcements = await _dbContext.Announcements.
             Where(a => includeUnactivated || a.IsActive)
             .Join(_dbContext.Users,
