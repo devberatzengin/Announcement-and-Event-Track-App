@@ -2,6 +2,9 @@
 
 .idea/
 
+# Log Files
+/Logs  
+
 # Enviroment 
 appsettings.Development.json
 
