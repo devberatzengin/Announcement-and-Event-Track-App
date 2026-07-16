@@ -1,3 +1,4 @@
+using System.Formats.Asn1;
 using Microsoft.AspNetCore.Mvc;
 using Announcement_and_Event_Track_App.Dtos.Announcement;
 using Announcement_and_Event_Track_App.Services.Interfaces;
@@ -19,52 +20,65 @@ public class AnnouncementController : ControllerBase
     
     // List All Announcement
     [HttpGet]
-    public Task<List<Response>> GetAllAsync(bool includeUnactivated = false)
+    public async Task<ActionResult<List<Response>>> GetAll(bool includeUnactivated = false)
     {
-        return _announcementService.GetAllAsync(includeUnactivated);
+        var result = await _announcementService.GetAllAsync(includeUnactivated);
+        return Ok(result);
     }
 
     //  New Announcement
+    [ProducesResponseType(typeof(Response), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [HttpPost]
-    public Task<Response> CreateAsync(CreateRequest request)
+    public async Task<ActionResult<Response>> Create(CreateRequest request)
     {
-        return _announcementService.CreateAsync(request);
+        var reuslt = await _announcementService.CreateAsync(request);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = reuslt.Id },
+            reuslt);
     }
 
     // Get Announcement By Id
     [HttpGet("{id}")]
-    public Task<Response?> GetByIdAsync(Guid id)
+    public async Task<ActionResult<Response?>> GetById(Guid id)
     {
-        return _announcementService.GetByIdAsync(id);
+        var result = await _announcementService.GetByIdAsync(id);
+        return Ok(result);
     }
     
     
     // [HttpPut] Edit Announcement By Id
     [HttpPut("{id}")]
-    public Task<Response?> UpdateAsync(Guid id,UpdateRequest request)
+    public async Task<ActionResult<Response?>> Update(Guid id,UpdateRequest request)
     {
         request.Id = id; // burda ne yaptım bilmiyorum bi an mantığıma yatmadı
-        return _announcementService.UpdateAsync(request);
+        var result = await _announcementService.UpdateAsync(request);
+        return Ok(result);
     }
 
     // Announcement Publish By Id
     [HttpPatch("{id}/publish")]
-    public Task<Response?> PublishAsync(Guid id)
+    public async Task<ActionResult<Response?>> Publish(Guid id)
     {
-        return _announcementService.PublishAsync(id);
+        var result = _announcementService.PublishAsync(id);
+        return Ok(result);
     }
 
     //Announcement UnPublish By Id
     [HttpPatch("{id}/unpublish")]
-    public Task<Response?> UnpublishAsync(Guid id)
+    public async Task<ActionResult<Response?>> Unpublish(Guid id)
     {
-        return _announcementService.UnpublishAsync(id);
+        var result = await _announcementService.UnpublishAsync(id);
+        return Ok(result);
     }
 
     [HttpPatch("{id}/archive")] // arşivleme silme gibi şuan elle açmadıkça arşivde duruyor şuan
-    public Task<bool> ArchiveAsync(Guid id)
+    public async Task<ActionResult<bool>> Archive(Guid id)
     {
-        return _announcementService.ArchiveAsync(id);
+        var result = await _announcementService.ArchiveAsync(id);
+        return Ok(result);
     }
 
 }

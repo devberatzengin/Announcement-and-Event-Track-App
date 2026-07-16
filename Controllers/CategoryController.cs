@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Announcement_and_Event_Track_App.Dtos.Category;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Announcement_and_Event_Track_App.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class CategoryController
+public class CategoryController : ControllerBase
 {
     
     private readonly ICategoryService _categoryService;
@@ -21,48 +22,54 @@ public class CategoryController
     
 
     [HttpPost]
-    public Task<Response> CreateAsync(CreateRequest createRequest)
+    [ProducesResponseType(typeof(Response), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<Response>> Create(CreateRequest createRequest)
     {
-        return _categoryService.CreateAsync(createRequest);
+         var result = await _categoryService.CreateAsync(createRequest);
+         
+         return CreatedAtAction(
+             nameof(GetById),
+             new { id = result.Id },
+             result);
     }
 
     [HttpGet]
-    public Task<List<Response>> GetAllAsync(bool includeUnactivated = false)
+    public async Task<ActionResult<List<Response>>> GetAll([FromQuery] bool includeUnactivated = false)
     {
-        return _categoryService.GetAllAsync(includeUnactivated);
+        var result = await _categoryService.GetAllAsync(includeUnactivated);
+        return Ok(result);
     }
 
     [HttpGet("{id}")]
-    public async Task<Response> GetById(
-        Guid id,                                              
-        [FromQuery] bool includeUnactivated = false)          
+    public async Task<ActionResult<Response>> GetById(Guid id, [FromQuery] bool includeUnactivated = false)          
     {
-        return await _categoryService.GetByIdAsync(id, includeUnactivated);
-        
+        var result = await _categoryService.GetByIdAsync(id, includeUnactivated);
+        return Ok(result);
     }
 
     [HttpPut]
-    public async Task<Response?> UpdateAsync(UpdateRequest updateRequest)
+    public async Task<ActionResult<Response?>> Update(UpdateRequest updateRequest)
     {
-        return await _categoryService.UpdateAsync(updateRequest);
+        var result = await _categoryService.UpdateAsync(updateRequest);
+        return Ok(result);
     }
     
 
     [HttpPatch("{id}/deactivate")]
-    public async Task<Response> Deactivate(Guid id)
+    public async Task<ActionResult<Response>> Deactivate(Guid id)
     {
-        return await _categoryService.DeactivateAsync(id);
+        var result = await _categoryService.DeactivateAsync(id);
+        return Ok(result);
     }
 
     [HttpDelete]
-    public async Task<bool> DeleteAsync(Guid categoryId)
+    public async Task<ActionResult<bool>> Delete(Guid categoryId)
     {
-        return await _categoryService.DeleteAsync(categoryId);
+        var result = await _categoryService.DeleteAsync(categoryId);
+        return Ok(result);
     }
-
-
     
-    
-
     
 }

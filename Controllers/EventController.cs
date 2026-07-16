@@ -1,3 +1,4 @@
+using System.Formats.Asn1;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Announcement_and_Event_Track_App.Dtos.Event;
@@ -14,47 +15,60 @@ public class EventController : ControllerBase
         _eventService = eventService;
     }
 
+    [ProducesResponseType(typeof(Response), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [HttpPost]
-    public Task<Response> Create(CreateRequest createRequest)
+    public async Task<ActionResult<Response>> Create(CreateRequest createRequest)
     {
-        return _eventService.Create(createRequest);
+        var result = await _eventService.CreateAsync(createRequest);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { Id = result.Id },
+            result);
     }
 
     [HttpGet]
-    public Task<List<Response>> GetAllAsync(bool includeUnactivated = false)
+    public async Task<ActionResult<List<Response>>> GetAll(bool includeUnactivated = false)
     {
-        return _eventService.GetAllAsync(includeUnactivated);
+        var result = await _eventService.GetAllAsync(includeUnactivated);
+        return Ok(result);
     }
 
     [HttpGet("{eventId:guid}")]
-    public Task<Response?> GetByIdAsync(Guid eventId)
+    public async Task<ActionResult<Response?>> GetById(Guid eventId)
     {
-        return _eventService.GetByIdAsync(eventId);
+        var result = await _eventService.GetByIdAsync(eventId);
+        return Ok(result);
     }
 
     [HttpPut("{eventId:guid}")]
-    public Task<Response?> UpdateAsync(Guid eventId,UpdateRequest request)
+    public async Task<ActionResult<Response?>> Update(Guid eventId,UpdateRequest request)
     {
         request.Id = eventId;
-        return _eventService.UpdateAsync(request);
+        var result = await _eventService.UpdateAsync(request);
+        return Ok(result);
     }
 
     [HttpPatch("{eventId:guid}/publish")]
-    public Task<Response?> PublishAsync(Guid eventId)
+    public async Task<ActionResult<Response?>> Publish(Guid eventId)
     {
-        return _eventService.PublishAsync(eventId);
+        var result = await _eventService.PublishAsync(eventId);
+        return Ok(result);
     }
 
     [HttpPatch("{eventId:guid}/unpublish")]
-    public Task<Response?> UnpublishAsync(Guid eventId)
+    public async Task<ActionResult<Response?>> Unpublish(Guid eventId)
     {
-        return _eventService.UnpublishAsync(eventId);
+        var result = await _eventService.UnpublishAsync(eventId);
+        return Ok(result);
     }
 
     [HttpDelete]
-    public Task<bool> ArchiveAsync(Guid eventId)
+    public async Task<ActionResult<bool>> Archive(Guid eventId)
     {
-        return _eventService.ArchiveAsync(eventId);
+        var result = await _eventService.ArchiveAsync(eventId);
+        return Ok(result);
     }
 
 
