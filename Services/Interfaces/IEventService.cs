@@ -5,7 +5,7 @@ namespace Announcement_and_Event_Track_App.Services.Interfaces;
 public interface IEventService
 {
 
-    Task<Response> Create(CreateRequest createRequest);
+    Task<Response> CreateAsync(CreateRequest createRequest);
     Task<List<Response>> GetAllAsync(bool includeUnactivated = false);
     Task<Response?> GetByIdAsync(Guid eventId);
     Task<Response?> UpdateAsync(UpdateRequest request);

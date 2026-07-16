@@ -17,7 +17,7 @@ public class EventService : IEventService
         _dbContext = dbContext;
     }
     
-    public async Task<Response> Create(CreateRequest createRequest)
+    public async Task<Response> CreateAsync(CreateRequest createRequest)
     {
         
         //JWT CHECK SONRA
