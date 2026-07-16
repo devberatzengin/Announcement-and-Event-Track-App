@@ -33,6 +33,7 @@ public class Program
         // Services
         builder.Services.AddScoped<ICategoryService, CategoryService>();
         builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
+        builder.Services.AddScoped<IEventService, EventService>();
         
         
         var app = builder.Build();
