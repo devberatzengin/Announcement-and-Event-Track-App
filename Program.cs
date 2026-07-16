@@ -10,9 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Microsoft.OpenApi;
-using Announcement_and_Event_Track_App.Services;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.OpenApi;
 
 
 namespace Announcement_and_Event_Track_App;
@@ -64,6 +62,7 @@ public class Program
         builder.Services.AddScoped<TokenService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+        builder.Services.AddScoped<IUserService, UserService>();
 
 
 

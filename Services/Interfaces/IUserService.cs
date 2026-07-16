@@ -6,7 +6,7 @@ public interface IUserService
 {
     Task<List<UserResponse>> GetAllAsync();                          // Admin
     Task<UserResponse> GetByIdAsync(Guid id);
-    Task<UserResponse> GetMeAsync(Guid currentUserId);               // token'daki kullanıcı
     Task<UserResponse> UpdateAsync(Guid id, UpdateRequest request, Guid currentUserId);
     Task DeactivateAsync(Guid id); 
+    Task DeleteAsync(Guid id);
 }
