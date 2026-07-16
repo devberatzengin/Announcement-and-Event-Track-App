@@ -18,7 +18,7 @@ public class User
     public string Username { get; set; } = string.Empty;
     
     [Required]
-    public string Password { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
     
     [Required]
     public string Email { get; set; } = string.Empty;
@@ -34,6 +34,8 @@ public class User
     public string PhoneNumber { get; set; } = string.Empty;
     
     
+    public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
+
     
     public bool IsActive { get; set; } = true;
     public bool IsDeleted { get; set; } = false;
