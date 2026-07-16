@@ -1,10 +1,11 @@
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.Design;
 using Announcement_and_Event_Track_App.Data;
 using Announcement_and_Event_Track_App.Dtos.Event;
 using Announcement_and_Event_Track_App.Entitys;
+using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
 
 namespace Announcement_and_Event_Track_App.Services;
 
@@ -29,14 +30,13 @@ public class EventService : IEventService
         var categoryCheck = _dbContext.Categories.FirstOrDefault(c => c.Id == createRequest.CategoryId);
         
         if (categoryCheck is null)
-            throw new Exception("Kategori id kontrol ediniz");
+            throw new NotFoundException(nameof(Category), createRequest.CategoryId);
 
         if (createRequest.EndDate <= DateTime.Now)
-            throw new ValidationException("Bitiş tarihi geçmiş bir zaman olamaz.");
- 
+            throw new Excepitons.ValidationException("Bitiş tarihi geçmiş bir zaman olamaz.");
         if (createRequest.EndDate <= createRequest.StartDate)
-            throw new ValidationException("Başlangış bitişden sonra olamaz.");
-        
+            throw new Excepitons.ValidationException("Başlangış bitişden sonra olamaz.");
+
         
         Event newEvent = new Event()
         {
@@ -111,7 +111,7 @@ public class EventService : IEventService
         var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
         
         if (result is null)
-            return null;
+            throw new NotFoundException(nameof(Event), eventId);
 
         return new Response()
         {
@@ -138,7 +138,7 @@ public class EventService : IEventService
         var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == request.Id);
         
         if  (result is null)
-            return null;
+            throw new NotFoundException(nameof(Event), request.Id);
         
         // Burda bir mantık hatası var hepsini elle böyle  böyle nereye kadar mantıken bir yolu vardır da
         result.Name = request.Name;
@@ -178,7 +178,7 @@ public class EventService : IEventService
     {
         var result =  _dbContext.Events.FirstOrDefault(e => e.Id == eventId);
         if (result is null)
-            return null;
+            throw new NotFoundException(nameof(Event), eventId);
         
         result.IsActive = true;
         result.UpdatedAt = DateTime.UtcNow;
@@ -207,8 +207,9 @@ public class EventService : IEventService
     public async Task<Response?> UnpublishAsync(Guid eventId)
     {
         var result =  _dbContext.Events.FirstOrDefault(e => e.Id == eventId);
+        
         if (result is null)
-            return null;
+            throw new NotFoundException(nameof(Event), eventId);
         
         result.IsActive = false;
         result.UpdatedAt = DateTime.UtcNow;
@@ -237,8 +238,9 @@ public class EventService : IEventService
     public async Task<bool> ArchiveAsync(Guid eventId)
     {
         var result =  _dbContext.Events.FirstOrDefault(e => e.Id == eventId);
+        
         if (result is null)
-            return false;
+            throw new NotFoundException(nameof(Event), eventId);
         
         result.IsDeleted = true;
         result.UpdatedAt = DateTime.UtcNow;

@@ -1,6 +1,7 @@
 using Announcement_and_Event_Track_App.Data;
 using Announcement_and_Event_Track_App.Dtos.Announcement;
 using Announcement_and_Event_Track_App.Entitys;
+using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,8 +24,8 @@ public class AnnouncementService : IAnnouncementService
             .FirstOrDefaultAsync();
 
         if (result is null)
-            return null;
-
+            throw new NotFoundException(nameof(Announcement), announcementId);
+        
         return new Response()
         {
             Id = result.Id,
@@ -88,7 +89,7 @@ public class AnnouncementService : IAnnouncementService
         var category =  _dbContext.Categories.First(c => c.Id == request.CategoryId);
 
         if (category is null)
-            throw new Exception("Kategori bulunamadı");
+            throw new Exception($"{request.CategoryId}  not found", new NotFoundException(nameof(Category), request.CategoryId));
         
         var title = nameCount > 0 ? $"{request.Title} {nameCount + 1}" : request.Title;
         
@@ -111,13 +112,9 @@ public class AnnouncementService : IAnnouncementService
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-
-        Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!Nesne Oluşturuludu!!!!!!!!!!!");
         
         _dbContext.Announcements.Add(newAnnouncement);
         await _dbContext.SaveChangesAsync();
-
-        Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!Nesne Asenkron save oluyor.!!!!!!!!!!!!!");
         
         return new Response()
         {
@@ -141,14 +138,14 @@ public class AnnouncementService : IAnnouncementService
     {
 
         var announcement = await _dbContext.Announcements.FirstAsync(a => a.Id == request.Id);
+        
         if (announcement is null)
-            throw new Exception("Announcement bulunamadı");
+            throw new NotFoundException(nameof(Announcement), request.Id);
         
         
         var categoryExists =  _dbContext.Categories.Any(c => c.Id == request.CategoryId);
         if (!categoryExists)
-            throw new Exception("Kategori bulunamadı");
-        
+            throw new Exception($"{request.CategoryId}  not found", new NotFoundException(nameof(Category), request.CategoryId));
         
         var nameCount = await _dbContext.Announcements
             .CountAsync(a => a.Title == request.Title || a.Title.StartsWith(request.Title + " "));
@@ -174,16 +171,14 @@ public class AnnouncementService : IAnnouncementService
     
     public async Task<Response?> PublishAsync(Guid announcementId)
     {
-        Console.WriteLine("----------!!!!!!!!");
 
         var  announcement =  _dbContext.Announcements
             .Include(a => a.Category)
             .Include(u => u.CreatedBy)
             .FirstOrDefault(a => a.Id == announcementId);
         
-        
-        if (announcement == null)
-            return null;
+        if (announcement is null)
+            throw new NotFoundException(nameof(Announcement), announcementId);
         
         announcement.IsActive = true;
         announcement.UpdatedAt = DateTime.UtcNow;
@@ -209,13 +204,10 @@ public class AnnouncementService : IAnnouncementService
         var  announcement =  _dbContext.Announcements
             .Include(a => a.Category)
             .Include(u => u.CreatedBy)
-            .First(a => a.Id == announcementId);
-        
-
-        Console.WriteLine("----------"+announcement.Category.Name);
+            .FirstOrDefault(a => a.Id == announcementId);
         
         if (announcement is null)
-            return null;
+            throw new NotFoundException(nameof(Announcement), announcementId);
         
         announcement.IsActive = false;
         announcement.UpdatedAt = DateTime.UtcNow;
@@ -239,10 +231,10 @@ public class AnnouncementService : IAnnouncementService
     // Delete Method
     public async Task<bool> ArchiveAsync(Guid announcementId)
       {
-          var announcement = await _dbContext.Announcements.FirstAsync(a => a.Id == announcementId);
+          var announcement = await _dbContext.Announcements.FirstOrDefaultAsync(a => a.Id == announcementId);
           
           if (announcement is null)
-              return false;
+              throw new NotFoundException(nameof(Announcement), announcementId);
           
           announcement.IsDeleted = true;
           announcement.UpdatedAt = DateTime.UtcNow;

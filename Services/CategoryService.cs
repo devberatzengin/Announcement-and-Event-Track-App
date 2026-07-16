@@ -2,6 +2,7 @@ using Announcement_and_Event_Track_App.Data;
 using Announcement_and_Event_Track_App.Dtos.Category;
 using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Entitys.Enums;
+using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,12 +21,11 @@ public class CategoryService : ICategoryService
     
     public async Task<Response> CreateAsync(CreateRequest createRequest)
     {
-        bool nameExist = await _dbContext.Categories.AnyAsync(c => c.Name == createRequest.Name);
+        bool nameExist = await _dbContext.Categories
+            .AnyAsync(c => c.Name == createRequest.Name);
         
-
         if (nameExist)
-            throw new InvalidOperationException($"'{createRequest.Name}' adında kategori zaten var.");
-        
+            throw new ConflictException($"'{createRequest.Name}' adında kategori zaten var.");
         
         Category newCategory = new Category
         {
@@ -40,7 +40,6 @@ public class CategoryService : ICategoryService
         
         _dbContext.Categories.Add(newCategory);
         await _dbContext.SaveChangesAsync();
-
         return new Response
         {
             Id = newCategory.Id,
@@ -56,6 +55,9 @@ public class CategoryService : ICategoryService
         var categories =  await _dbContext.Categories
             .Where(c => includeUnactivated || c.IsActive)
             .ToListAsync();
+        
+        if (categories is null)
+            throw new NotFoundException(nameof(Category), "");
         
         var responses = new List<Response>();
         foreach (var category in categories)
@@ -82,7 +84,7 @@ public class CategoryService : ICategoryService
             .FirstOrDefaultAsync();  
         
         if (category is null)
-            return null;                                           
+            throw new NotFoundException(nameof(Category), categoryId);        
         
         return new Response()
         {
@@ -99,12 +101,12 @@ public class CategoryService : ICategoryService
         var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == updateRequest.Id);
 
         if (category is null)
-            return null;
+            throw new NotFoundException(nameof(Category), updateRequest.Id);
         
         bool nameExist = await _dbContext.Categories.AnyAsync(c => c.Name == updateRequest.Name);
         
         if (nameExist)
-            throw new InvalidOperationException($"'{updateRequest.Name}' adında başka kategori zaten var.");
+            throw new ConflictException($"'{updateRequest.Name}' adında kategori zaten var.");
         
         category.Name = updateRequest.Name;
         category.Type = updateRequest.Type;
@@ -125,13 +127,9 @@ public class CategoryService : ICategoryService
     public async Task<Response?> DeactivateAsync(Guid categoryId)
     {
         var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == categoryId); 
-        Console.WriteLine(category.Id);
-
-
+        
         if (category is null)
-            return null;
-        
-        
+            throw new NotFoundException(nameof(Category), categoryId);
         
         category.IsActive = false;
         category.UpdatedAt = DateTime.UtcNow;
@@ -153,8 +151,8 @@ public class CategoryService : ICategoryService
         var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
         
         if (category is null)
-            return false;
-        
+            throw new NotFoundException(nameof(Category), categoryId);
+            
         category.IsDeleted = true;
         category.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
