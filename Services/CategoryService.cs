@@ -4,7 +4,9 @@ using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Entitys.Enums;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
 
 
 namespace Announcement_and_Event_Track_App.Services;
@@ -14,15 +16,26 @@ public class CategoryService : ICategoryService
     
     private readonly AppDbContext _dbContext;
     private readonly ILogger<AnnouncementService> _logger;
-    public CategoryService(AppDbContext dbContext, ILogger<AnnouncementService> logger)
+    private readonly IValidator<CreateRequest> _createValidator;
+    private readonly IValidator<UpdateRequest> _updateValidator;
+    public CategoryService(AppDbContext dbContext, ILogger<AnnouncementService> logger, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
     
     
     public async Task<Response> CreateAsync(CreateRequest createRequest)
     {
+        
+        var validation = await _createValidator.ValidateAsync(createRequest);
+
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary());
+        
+        
         bool nameExist = await _dbContext.Categories
             .AnyAsync(c => c.Name == createRequest.Name);
         
@@ -107,6 +120,11 @@ public class CategoryService : ICategoryService
 
     public async Task<Response?> UpdateAsync(UpdateRequest updateRequest)
     {
+        var validation = await _updateValidator.ValidateAsync(updateRequest);
+        
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary());
+        
         var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == updateRequest.Id);
 
         if (category is null)
