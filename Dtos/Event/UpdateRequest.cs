@@ -18,8 +18,4 @@ public class UpdateRequest
     public DateTime EndDate { get; set; }
     
     public Guid CategoryId { get; set; }
-    
-    public bool IsActive { get; set; } = true;
-    
-    public bool IsDeleted { get; set; } = false;
 }
