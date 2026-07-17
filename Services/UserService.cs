@@ -3,16 +3,21 @@ using Announcement_and_Event_Track_App.Dtos.User;
 using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using Announcement_and_Event_Track_App.Validators.UserValidator;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
 
 namespace Announcement_and_Event_Track_App.Services;
 
 public class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;
-    public UserService(AppDbContext dbContext)
+    private readonly IValidator<UpdateRequest> _validator;
+    public UserService(AppDbContext dbContext, IValidator<UpdateRequest> validator)
     {
         _dbContext = dbContext;
+        _validator = validator;
     }
     
     public async Task<List<UserResponse>> GetAllAsync()
@@ -57,7 +62,12 @@ public class UserService : IUserService
         {
             throw new ForbiddenException("Sen Başka Birisini güncellemeye çalışıyorsun");
         }
-
+        
+        var validation = await _validator.ValidateAsync(request);
+        
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary());
+        
         var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (dbUser is null)
             throw new NotFoundException(nameof(User), id);
