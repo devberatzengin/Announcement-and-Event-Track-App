@@ -8,8 +8,8 @@ public class CreateRequestValidator : AbstractValidator<CreateRequest>
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required")
-            .MaximumLength(30).WithMessage("Name cannot exceed 50 characters")
-            .MinimumLength(3).WithMessage("Name cannot exceed 30 characters");
+            .MaximumLength(100).WithMessage("Name cannot exceed 100 characters")
+            .MinimumLength(3).WithMessage("Name must be at least 3 characters");
 
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("CategoryId is required")
@@ -23,12 +23,13 @@ public class CreateRequestValidator : AbstractValidator<CreateRequest>
         
         RuleFor(x => x.StartDate)
             .NotEmpty().WithMessage("Start Date is required")
-            .GreaterThanOrEqualTo(DateTime.Now).WithMessage("Start Date cannot be in the previous date");
-        
+            .GreaterThanOrEqualTo(_ => DateTime.UtcNow).WithMessage("Start Date cannot be in the past");
+
+        // BUGFIX: eski kural EndDate <= Now istiyordu; gelecekteki hiçbir etkinlik geçerli olamazdı
         RuleFor(x => x.EndDate)
             .NotEmpty().WithMessage("End Date is required")
-            .LessThanOrEqualTo(DateTime.Now).WithMessage("End Date cannot be in the previous date")
-            .GreaterThan(x => x.StartDate).WithMessage("End date cannot be in the previous at start date");
+            .GreaterThan(_ => DateTime.UtcNow).WithMessage("End Date cannot be in the past")
+            .GreaterThan(x => x.StartDate).WithMessage("End date cannot be before start date");
     }
     
 }
