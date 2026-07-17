@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Announcement_and_Event_Track_App.Dtos.Category;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Announcement_and_Event_Track_App.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]                                    
 public class CategoryController : ControllerBase
 {
     
@@ -25,6 +27,7 @@ public class CategoryController : ControllerBase
     [ProducesResponseType(typeof(Response), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response>> Create(CreateRequest createRequest)
     {
          var result = await _categoryService.CreateAsync(createRequest);
@@ -38,18 +41,19 @@ public class CategoryController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<Response>>> GetAll([FromQuery] bool includeUnactivated = false)
     {
-        var result = await _categoryService.GetAllAsync(includeUnactivated);
+        var result = await _categoryService.GetAllAsync(includeUnactivated && IsAdmin());
         return Ok(result);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<Response>> GetById(Guid id, [FromQuery] bool includeUnactivated = false)          
+    public async Task<ActionResult<Response>> GetById(Guid id, [FromQuery] bool includeUnactivated = false)
     {
-        var result = await _categoryService.GetByIdAsync(id, includeUnactivated);
+        var result = await _categoryService.GetByIdAsync(id, includeUnactivated && IsAdmin());
         return Ok(result);
     }
 
     [HttpPut]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response?>> Update(UpdateRequest updateRequest)
     {
         var result = await _categoryService.UpdateAsync(updateRequest);
@@ -58,6 +62,7 @@ public class CategoryController : ControllerBase
     
 
     [HttpPatch("{id}/deactivate")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response>> Deactivate(Guid id)
     {
         var result = await _categoryService.DeactivateAsync(id);
@@ -65,11 +70,12 @@ public class CategoryController : ControllerBase
     }
 
     [HttpDelete]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<bool>> Delete(Guid categoryId)
     {
         var result = await _categoryService.DeleteAsync(categoryId);
         return Ok(result);
     }
-    
-    
+
+    private bool IsAdmin() => User.IsInRole("Admin");
 }

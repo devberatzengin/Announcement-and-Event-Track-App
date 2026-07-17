@@ -1,7 +1,7 @@
-using System.Formats.Asn1;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Announcement_and_Event_Track_App.Dtos.Announcement;
+using Announcement_and_Event_Track_App.Dtos.Common;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -10,8 +10,7 @@ namespace Announcement_and_Event_Track_App.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]                                    
-
+[Authorize]
 public class AnnouncementController : ControllerBase
 {
     private readonly IAnnouncementService _announcementService;
@@ -25,9 +24,16 @@ public class AnnouncementController : ControllerBase
     
     // List All Announcement
     [HttpGet]
-    public async Task<ActionResult<List<Response>>> GetAll(bool includeUnactivated = false)
+    public async Task<ActionResult<PagedResponse<Response>>> GetAll([FromQuery] ListRequest request)
     {
-        var result = await _announcementService.GetAllAsync(includeUnactivated);
+        var result = await _announcementService.GetAllAsync(request, IsAdmin());
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<Response?>> GetById(Guid id)
+    {
+        var result = await _announcementService.GetByIdAsync(id, IsAdmin());
         return Ok(result);
     }
 
@@ -36,6 +42,7 @@ public class AnnouncementController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response>> Create(CreateRequest request)
     {
         
@@ -44,14 +51,6 @@ public class AnnouncementController : ControllerBase
             nameof(GetById),
             new { id = reuslt.Id },
             reuslt);
-    }
-
-    // Get Announcement By Id
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Response?>> GetById(Guid id)
-    {
-        var result = await _announcementService.GetByIdAsync(id);
-        return Ok(result);
     }
     
     
@@ -65,22 +64,25 @@ public class AnnouncementController : ControllerBase
     }
 
     // Announcement Publish By Id
-    [HttpPatch("{id}/publish")]
+    [HttpPatch("{id:guid}/publish")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response?>> Publish(Guid id)
     {
-        var result = _announcementService.PublishAsync(id, GetCurrentUserId());
+        var result = await _announcementService.PublishAsync(id, GetCurrentUserId());
         return Ok(result);
     }
 
-    //Announcement UnPublish By Id
-    [HttpPatch("{id}/unpublish")]
+    // Announcement UnPublish By Id
+    [HttpPatch("{id:guid}/unpublish")] 
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response?>> Unpublish(Guid id)
     {
         var result = await _announcementService.UnpublishAsync(id, GetCurrentUserId());
         return Ok(result);
     }
 
-    [HttpPatch("{id}/archive")] // arşivleme silme gibi şuan elle açmadıkça arşivde duruyor şuan
+    [HttpPatch("{id:guid}/archive")] // arşivleme silme gibi şuan elle açmadıkça arşivde duruyor şuan
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<bool>> Archive(Guid id)
     {
         var result = await _announcementService.ArchiveAsync(id, GetCurrentUserId());
@@ -96,4 +98,5 @@ public class AnnouncementController : ControllerBase
         return Guid.Parse(value);
     }
 
+    private bool IsAdmin() => User.IsInRole("Admin");
 }

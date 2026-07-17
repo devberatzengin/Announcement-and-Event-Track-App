@@ -42,10 +42,11 @@ public class UsersController : ControllerBase
         return Ok(result);
     }
 
+    // Admin kontrolü service layer a alındı
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<UserResponse>> Update(Guid id, UpdateRequest request)
     {
-        var result = _userService.UpdateAsync(id, request, GetCurrentUserId());
+        var result = await _userService.UpdateAsync(id, request, GetCurrentUserId());
         return Ok(result);
     }
 
