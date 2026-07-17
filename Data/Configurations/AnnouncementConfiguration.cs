@@ -1,4 +1,5 @@
 using Announcement_and_Event_Track_App.Entitys;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,20 +9,16 @@ public class AnnouncementConfiguration : IEntityTypeConfiguration<Announcement>
 {
     public void Configure(EntityTypeBuilder<Announcement> builder)
     {
-        // Key
         builder.HasKey(x => x.Id); 
         builder.Property(x => x.Id)
             .ValueGeneratedNever();
         
-        // Her duyurunun 1 tane Categorisi vardır ilişkisi
         
         builder.HasOne(a => a.Category)
             .WithMany()
             .HasForeignKey(a => a.CategoryId)
             .IsRequired()
-            .OnDelete(DeleteBehavior.Restrict); // içinde duyuru varsa kategori silinemez.
-        
-        // Her duyurunun 1 user ilişkisi (createdBy) vardır
+            .OnDelete(DeleteBehavior.Restrict); 
         
         builder.HasOne(a => a.CreatedBy)
             .WithMany()
@@ -29,11 +26,13 @@ public class AnnouncementConfiguration : IEntityTypeConfiguration<Announcement>
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
         
-        // ---- Index: en sık sorgu "kategorideki aktif duyurular" ----
-        builder.HasIndex(a => new { a.CategoryId, a.IsActive });
+        builder.Property(a => a.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20);
 
-        // Is deleted true gelmesin ekrana
-        builder.HasQueryFilter(x => !x.IsDeleted);
+        builder.HasIndex(a => new { a.CategoryId, a.Status });
+
+        builder.HasQueryFilter(x => x.Status != ContentStatus.Archived);
         
         
     }

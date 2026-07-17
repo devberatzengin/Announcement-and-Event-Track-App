@@ -1,4 +1,5 @@
 using Announcement_and_Event_Track_App.Entitys;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -14,10 +15,18 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
             .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Yaklaşan event'ler index'i 
-        builder.HasIndex(e => e.StartDate);
-
+        builder.HasOne(e => e.CreatedBy)
+            .WithMany()
+            .HasForeignKey(e => e.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
         
-        builder.HasQueryFilter(e => !e.IsDeleted);
+        builder.Property(e => e.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.HasIndex(e => e.StartDate);
+        builder.HasIndex(e => new { e.CategoryId, e.Status });
+
+        builder.HasQueryFilter(e => e.Status != ContentStatus.Archived);
     }
 }
