@@ -1,6 +1,8 @@
 using Announcement_and_Event_Track_App.Data;
+using Announcement_and_Event_Track_App.Dtos.Common;
 using Announcement_and_Event_Track_App.Dtos.Event;
 using Announcement_and_Event_Track_App.Entitys;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using FluentValidation;
@@ -15,6 +17,7 @@ public class EventService : IEventService
     private readonly ILogger<EventService> _logger;
     private readonly IValidator<CreateRequest> _createValidator;
     private readonly IValidator<UpdateRequest> _updateValidator;
+
     public EventService(AppDbContext dbContext, ILogger<EventService> logger, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
     {
         _dbContext = dbContext;
@@ -23,15 +26,12 @@ public class EventService : IEventService
         _updateValidator = updateValidator;
     }
 
-    public async Task<Response> CreateAsync(CreateRequest createRequest)
+    public async Task<Response> CreateAsync(CreateRequest createRequest, Guid currentUserId)
     {
-
         var validation = await _createValidator.ValidateAsync(createRequest);
 
         if (!validation.IsValid)
             throw new ValidationException(validation.ToDictionary());
-
-        //JWT CHECK SONRA
 
         var nameCount = await _dbContext.Events
             .CountAsync(e => e.Name == createRequest.Name || e.Name.StartsWith(createRequest.Name + " "));
@@ -48,7 +48,6 @@ public class EventService : IEventService
         if (createRequest.EndDate <= createRequest.StartDate)
             throw new ValidationException("Bitiş tarihi başlangıçtan önce olamaz.");
 
-
         Event newEvent = new Event()
         {
             Id = Guid.NewGuid(),
@@ -56,14 +55,13 @@ public class EventService : IEventService
             Description = createRequest.Description,
             Location = createRequest.Location,
             CategoryId = createRequest.CategoryId,
+            CreatedByUserId = currentUserId,
             StartDate = createRequest.StartDate,
             EndDate = createRequest.EndDate,
 
-
-            CreatedAt =  DateTime.UtcNow,
-            UpdatedAt =  DateTime.UtcNow,
-            IsActive = true,
-            IsDeleted =  false
+            Status = ContentStatus.Draft, 
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         _dbContext.Events.Add(newEvent);
@@ -71,91 +69,107 @@ public class EventService : IEventService
 
         _logger.LogInformation("Created event {EventId} with name {Name}", newEvent.Id, newEvent.Name);
 
-        return new Response()
-        {
-            Id = newEvent.Id,
-            Name = newEvent.Name,
-            Description = newEvent.Description,
-            Location = newEvent.Location,
-
-            StartDate = newEvent.StartDate,
-            EndDate = newEvent.EndDate,
-
-            CategoryId = newEvent.CategoryId,
-
-            IsActive = newEvent.IsActive,
-            IsDeleted = newEvent.IsDeleted,
-            CreatedAt = newEvent.CreatedAt
-        };
-
+        return ToResponse(newEvent);
     }
 
-    public async Task<List<Response>> GetAllAsync(bool includeUnactivated = false)
+    public async Task<PagedResponse<Response>> GetAllAsync(ListRequest request, bool isAdmin)
     {
-        var events = await _dbContext.Events.Where(e => includeUnactivated || e.IsActive).ToListAsync();
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
-        var response = new List<Response>();
+        var query = _dbContext.Events.AsNoTracking().AsQueryable();
+        
+        if (!isAdmin)
+            query = query.Where(e => e.Status == ContentStatus.Published);
+        else if (request.Status is not null)
+            query = query.Where(e => e.Status == request.Status);
 
-        foreach (var eventItem in events)
+        if (request.CategoryId is not null)
+            query = query.Where(e => e.CategoryId == request.CategoryId);
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            response.Add(new Response()
-            {
-                Id = eventItem.Id,
-                Name = eventItem.Name,
-                Description = eventItem.Description,
-                Location = eventItem.Location,
-                StartDate = eventItem.StartDate,
-                EndDate = eventItem.EndDate,
-                CategoryId = eventItem.CategoryId,
-                IsActive = eventItem.IsActive,
-                IsDeleted = eventItem.IsDeleted,
-                CreatedAt = eventItem.CreatedAt,
-                UpdatedAt = eventItem.UpdatedAt
-            });
+            var pattern = $"%{request.Search.Trim()}%";
+            query = query.Where(e =>
+                EF.Functions.ILike(e.Name, pattern) ||
+                EF.Functions.ILike(e.Description, pattern));
         }
 
-        return response;
+        if (request.StartFrom is not null)
+            query = query.Where(e => e.StartDate >= request.StartFrom);
+        if (request.StartTo is not null)
+            query = query.Where(e => e.StartDate <= request.StartTo);
 
+        // upcoming events
+        var now = DateTime.UtcNow;
+        if (request.Period == EventPeriod.Upcoming)
+            query = query.Where(e => e.StartDate >= now);
+        else if (request.Period == EventPeriod.Past)
+            query = query.Where(e => e.EndDate < now);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderBy(e => e.StartDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(e => new Response
+            {
+                Id = e.Id,
+                Name = e.Name,
+                Description = e.Description,
+                Location = e.Location,
+                StartDate = e.StartDate,
+                EndDate = e.EndDate,
+                CategoryId = e.CategoryId,
+                Status = e.Status,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt
+            })
+            .ToListAsync();
+
+        _logger.LogInformation("Listed {Count}/{Total} events (page {Page})", items.Count, totalCount, page);
+
+        return new PagedResponse<Response>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 
-    public async Task<Response?> GetByIdAsync(Guid eventId)
+    public async Task<Response?> GetByIdAsync(Guid eventId, bool isAdmin)
     {
-        var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+        var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
 
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
 
-        return new Response()
-        {
-            Id = result.Id,
-            Name = result.Name,
-            Description = result.Description,
-            Location = result.Location,
+        if (!isAdmin && result.Status != ContentStatus.Published)
+            throw new NotFoundException(nameof(Event), eventId);
 
-            StartDate = result.StartDate,
-            EndDate = result.EndDate,
-
-            CategoryId = result.CategoryId,
-
-            IsActive = result.IsActive,
-            IsDeleted = result.IsDeleted,
-            CreatedAt = result.CreatedAt,
-            UpdatedAt = result.UpdatedAt
-        };
-
+        return ToResponse(result);
     }
 
-    public async Task<Response?> UpdateAsync(UpdateRequest request)
+    public async Task<Response?> UpdateAsync(UpdateRequest request, Guid currentUserId)
     {
         var validation = await _updateValidator.ValidateAsync(request);
 
         if (!validation.IsValid)
             throw new ValidationException(validation.ToDictionary());
 
-        var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == request.Id);
+        var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == request.Id);
 
-        if  (result is null)
+        if (result is null)
             throw new NotFoundException(nameof(Event), request.Id);
+
+        var categoryExists = await _dbContext.Categories.AnyAsync(c => c.Id == request.CategoryId);
+        if (!categoryExists)
+            throw new NotFoundException(nameof(Category), request.CategoryId);
+
+        if (request.EndDate <= request.StartDate)
+            throw new ValidationException("Bitiş tarihi başlangıçtan önce olamaz.");
 
         result.Name = request.Name;
         result.Description = request.Description;
@@ -163,110 +177,81 @@ public class EventService : IEventService
         result.StartDate = request.StartDate;
         result.EndDate = request.EndDate;
         result.CategoryId = request.CategoryId;
-        result.IsActive = request.IsActive;
         result.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("Updated event {EventId}", result.Id);
+        _logger.LogInformation("Updated event {EventId} by user {UserId}", result.Id, currentUserId);
 
-        return new Response()
-        {
-            Id = result.Id,
-            Name = result.Name,
-            Description = result.Description,
-            Location = result.Location,
-
-            StartDate = result.StartDate,
-            EndDate = result.EndDate,
-
-            CategoryId = result.CategoryId,
-
-            IsActive = result.IsActive,
-            IsDeleted = result.IsDeleted,
-            CreatedAt = result.CreatedAt,
-            UpdatedAt = result.UpdatedAt
-        };
-
+        return ToResponse(result);
     }
 
-    public async Task<Response?> PublishAsync(Guid eventId)
+    public async Task<Response?> PublishAsync(Guid eventId, Guid currentUserId)
     {
         var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
 
-        result.IsActive = true;
+        if (result.Status == ContentStatus.Published)
+            throw new ConflictException("Event already published");
+        if (result.Status == ContentStatus.Archived)
+            throw new ConflictException("Event cannot publish if it is already archived");
+
+        result.Status = ContentStatus.Published;
         result.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("Published event {EventId}", result.Id);
+        _logger.LogInformation("Published event {EventId} by user {UserId}", result.Id, currentUserId);
 
-        return new Response()
-        {
-            Id = result.Id,
-            Name = result.Name,
-            Description = result.Description,
-            Location = result.Location,
-
-            StartDate = result.StartDate,
-            EndDate = result.EndDate,
-
-            CategoryId = result.CategoryId,
-
-            IsActive = result.IsActive,
-            IsDeleted = result.IsDeleted,
-            CreatedAt = result.CreatedAt,
-            UpdatedAt = result.UpdatedAt
-        };
+        return ToResponse(result);
     }
 
-    public async Task<Response?> UnpublishAsync(Guid eventId)
+    public async Task<Response?> UnpublishAsync(Guid eventId, Guid currentUserId)
     {
         var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
 
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
 
-        result.IsActive = false;
+        if (result.Status != ContentStatus.Published)
+            throw new ConflictException("Unpublished event can not uunpublish again.");
+
+        result.Status = ContentStatus.Passive;
         result.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("Unpublished event {EventId}", result.Id);
+        _logger.LogInformation("Unpublished event {EventId} by user {UserId}", result.Id, currentUserId);
 
-        return new Response()
-        {
-            Id = result.Id,
-            Name = result.Name,
-            Description = result.Description,
-            Location = result.Location,
-
-            StartDate = result.StartDate,
-            EndDate = result.EndDate,
-
-            CategoryId = result.CategoryId,
-
-            IsActive = result.IsActive,
-            IsDeleted = result.IsDeleted,
-            CreatedAt = result.CreatedAt,
-            UpdatedAt = result.UpdatedAt
-        };
+        return ToResponse(result);
     }
 
-    public async Task<bool> ArchiveAsync(Guid eventId)
+    public async Task<bool> ArchiveAsync(Guid eventId, Guid currentUserId)
     {
         var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
 
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
 
-        result.IsDeleted = true;
+        result.Status = ContentStatus.Archived;
         result.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("Archived event {EventId}", result.Id);
+        _logger.LogInformation("Archived event {EventId} by user {UserId}", result.Id, currentUserId);
 
         return true;
-
     }
+
+    private static Response ToResponse(Event e) => new()
+    {
+        Id = e.Id,
+        Name = e.Name,
+        Description = e.Description,
+        Location = e.Location,
+        StartDate = e.StartDate,
+        EndDate = e.EndDate,
+        CategoryId = e.CategoryId,
+        Status = e.Status,
+        CreatedAt = e.CreatedAt,
+        UpdatedAt = e.UpdatedAt
+    };
 }

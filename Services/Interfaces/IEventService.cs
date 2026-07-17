@@ -1,15 +1,15 @@
+using Announcement_and_Event_Track_App.Dtos.Common;
 using Announcement_and_Event_Track_App.Dtos.Event;
 
 namespace Announcement_and_Event_Track_App.Services.Interfaces;
 
 public interface IEventService
 {
-
-    Task<Response> CreateAsync(CreateRequest createRequest);
-    Task<List<Response>> GetAllAsync(bool includeUnactivated = false);
-    Task<Response?> GetByIdAsync(Guid eventId);
-    Task<Response?> UpdateAsync(UpdateRequest request);
-    Task<Response?> PublishAsync(Guid eventId);
-    Task<Response?> UnpublishAsync(Guid eventId);
-    Task<bool> ArchiveAsync(Guid eventId);
+    Task<Response> CreateAsync(CreateRequest createRequest, Guid currentUserId);
+    Task<PagedResponse<Response>> GetAllAsync(ListRequest request, bool isAdmin);
+    Task<Response?> GetByIdAsync(Guid eventId, bool isAdmin);
+    Task<Response?> UpdateAsync(UpdateRequest request, Guid currentUserId);
+    Task<Response?> PublishAsync(Guid eventId, Guid currentUserId);
+    Task<Response?> UnpublishAsync(Guid eventId, Guid currentUserId);
+    Task<bool> ArchiveAsync(Guid eventId, Guid currentUserId);
 }

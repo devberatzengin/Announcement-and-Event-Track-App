@@ -1,4 +1,6 @@
-using System.Formats.Asn1;
+using System.Security.Claims;
+using Announcement_and_Event_Track_App.Dtos.Common;
+using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Announcement_and_Event_Track_App.Dtos.Event;
@@ -12,6 +14,7 @@ namespace Announcement_and_Event_Track_App.Controllers;
 public class EventController : ControllerBase
 {
     private readonly IEventService _eventService;
+
     public EventController(IEventService eventService)
     {
         _eventService = eventService;
@@ -21,59 +24,72 @@ public class EventController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response>> Create(CreateRequest createRequest)
     {
-        var result = await _eventService.CreateAsync(createRequest);
+        var result = await _eventService.CreateAsync(createRequest, GetCurrentUserId());
         return CreatedAtAction(
             nameof(GetById),
-            new { Id = result.Id },
+            new { eventId = result.Id },
             result);
     }
 
+    // Liste tüm login yaonlar
     [HttpGet]
-    public async Task<ActionResult<List<Response>>> GetAll(bool includeUnactivated = false)
+    public async Task<ActionResult<PagedResponse<Response>>> GetAll([FromQuery] ListRequest request)
     {
-        var result = await _eventService.GetAllAsync(includeUnactivated);
+        var result = await _eventService.GetAllAsync(request, IsAdmin());
         return Ok(result);
     }
 
+    // detayları sadece girişler görür
     [HttpGet("{eventId:guid}")]
     public async Task<ActionResult<Response?>> GetById(Guid eventId)
     {
-        var result = await _eventService.GetByIdAsync(eventId);
+        var result = await _eventService.GetByIdAsync(eventId, IsAdmin());
         return Ok(result);
     }
 
+
     [HttpPut("{eventId:guid}")]
-    public async Task<ActionResult<Response?>> Update(Guid eventId,UpdateRequest request)
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<Response?>> Update(Guid eventId, UpdateRequest request)
     {
         request.Id = eventId;
-        var result = await _eventService.UpdateAsync(request);
+        var result = await _eventService.UpdateAsync(request, GetCurrentUserId());
         return Ok(result);
     }
 
     [HttpPatch("{eventId:guid}/publish")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response?>> Publish(Guid eventId)
     {
-        var result = await _eventService.PublishAsync(eventId);
+        var result = await _eventService.PublishAsync(eventId, GetCurrentUserId());
         return Ok(result);
     }
 
     [HttpPatch("{eventId:guid}/unpublish")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response?>> Unpublish(Guid eventId)
     {
-        var result = await _eventService.UnpublishAsync(eventId);
+        var result = await _eventService.UnpublishAsync(eventId, GetCurrentUserId());
         return Ok(result);
     }
 
-    [HttpDelete]
+    [HttpPatch("{eventId:guid}/archive")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<bool>> Archive(Guid eventId)
     {
-        var result = await _eventService.ArchiveAsync(eventId);
+        var result = await _eventService.ArchiveAsync(eventId, GetCurrentUserId());
         return Ok(result);
     }
 
+    private Guid GetCurrentUserId()
+    {
+        var value = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedException("Token'da kullanıcı kimliği bulunamadı.");
+        return Guid.Parse(value);
+    }
 
-
+    private bool IsAdmin() => User.IsInRole("Admin");
 }
