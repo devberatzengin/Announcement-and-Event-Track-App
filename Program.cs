@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using Announcement_and_Event_Track_App.Helpers;
 using Microsoft.AspNetCore.OpenApi;
 using Scalar.AspNetCore;
+using System.IdentityModel.Tokens.Jwt;
 
 
 namespace Announcement_and_Event_Track_App;
@@ -62,6 +63,9 @@ public class Program
 
     
         // JWT
+        
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+        
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -75,7 +79,9 @@ public class Program
                     ValidAudience = builder.Configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
-                    ClockSkew = TimeSpan.Zero          // default 5 dk tolerans var, sıfırla
+                    ClockSkew = TimeSpan.Zero,          // default 5 dk tolerans var, sıfırla
+                    NameClaimType = "sub", 
+                    RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
                 };
             });
         
@@ -100,6 +106,7 @@ public class Program
 
         app.UseSerilogRequestLogging();   
         app.UseExceptionHandler();
+
         
         app.UseAuthentication();   // ÖNCE kimlik  — sıra önemli!
         app.UseAuthorization();    

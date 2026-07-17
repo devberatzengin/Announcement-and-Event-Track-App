@@ -42,7 +42,6 @@ public class AnnouncementController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [HttpPost]
-    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Response>> Create(CreateRequest request)
     {
         
@@ -56,10 +55,13 @@ public class AnnouncementController : ControllerBase
     
     // [HttpPut] Edit Announcement By Id
     [HttpPut("{id}")]
+    [Authorize]
     public async Task<ActionResult<Response?>> Update(Guid id,UpdateRequest request)
     {
         request.Id = id; // burda ne yaptım bilmiyorum bi an mantığıma yatmadı
-        var result = await _announcementService.UpdateAsync(request, GetCurrentUserId());
+        bool isAdmin = User.Claims.Any(c => 
+            c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" && c.Value == "Admin");
+        var result = await _announcementService.UpdateAsync(request, GetCurrentUserId(), isAdmin);
         return Ok(result);
     }
 
@@ -98,5 +100,11 @@ public class AnnouncementController : ControllerBase
         return Guid.Parse(value);
     }
 
-    private bool IsAdmin() => User.IsInRole("Admin");
+    private bool IsAdmin()
+    {
+        // Token içerisindeki uzun URI'ye sahip claim'i veya direkt ClaimTypes.Role'ü manuel ararız
+        return User.Claims.Any(c => 
+            (c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" || c.Type == System.Security.Claims.ClaimTypes.Role) 
+            && c.Value == "Admin");
+    }
 }

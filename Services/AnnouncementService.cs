@@ -160,7 +160,7 @@ public class AnnouncementService : IAnnouncementService
 
 
 
-    public async Task<Response?> UpdateAsync(UpdateRequest request, Guid currentUserId)
+    public async Task<Response?> UpdateAsync(UpdateRequest request, Guid currentUserId, bool isAdmin)
     {
         var validation = await _updateValidator.ValidateAsync(request);
         
@@ -174,7 +174,22 @@ public class AnnouncementService : IAnnouncementService
 
         if (announcement is null)
             throw new NotFoundException(nameof(Announcement), request.Id);
-
+        
+        
+        
+        Console.WriteLine($"Duyuru Sahibi: {announcement.CreatedByUserId}");
+        Console.WriteLine($"Giriş Yapan: {currentUserId}");
+        Console.WriteLine($"Admin mi?: {isAdmin}");
+        
+        if (!isAdmin) 
+        {
+            // Admin değilse, duyurunun sahibi olup olmadığına bakar
+            if (announcement.CreatedByUserId != currentUserId)
+            {
+                throw new ConflictException("Yetkin yok");
+            }
+        }
+        
         var categoryExists = await _dbContext.Categories.AnyAsync(c => c.Id == request.CategoryId);
         if (!categoryExists)
             throw new NotFoundException(nameof(Category), request.CategoryId);
