@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 
 namespace Announcement_and_Event_Track_App.Entitys;
 
@@ -9,16 +10,16 @@ namespace Announcement_and_Event_Track_App.Entitys;
 public class Announcement
 {
 
-    [Key] // Primary Key
-    [DatabaseGenerated(DatabaseGeneratedOption.None)] // Uuid Db'de üretilmez
-    [Required] // Not Null
+    [Key] 
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    [Required] 
     public Guid Id { get; set; }  = Guid.NewGuid();
     
     [Required]
-    [MaxLength(100)] // varchar(100)
+    [MaxLength(100)] 
     public string Title { get; set; } = string.Empty;
 
-    [MaxLength(500)] // varchar(500)
+    [MaxLength(500)] 
     public String Content { get; set; } = string.Empty;
     
     
@@ -31,12 +32,9 @@ public class Announcement
     public Category Category { get; set; } = null!;
     
     
-    [Column("is_active")]
-    public bool IsActive { get; set; } = true;
+    [Column("status")]
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
 
-    [Column("is_deleted")]
-    public bool IsDeleted { get; set; } = false;
-    
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     

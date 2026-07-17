@@ -3,6 +3,7 @@ namespace Announcement_and_Event_Track_App.Entitys;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 
 
 [Table("Event")]
@@ -14,10 +15,13 @@ public class Event
     public Guid Id { get; set; } = Guid.NewGuid();
     
     [Required]
+    [MaxLength(100)]
     public string Name { get; set; }  = string.Empty;
     
+    [MaxLength(100)]
     public string Description { get; set; } = string.Empty;
-
+    
+    [MaxLength(100)]
     public string Location { get; set; } = string.Empty;
     
     [Required]
@@ -30,12 +34,15 @@ public class Event
     public Guid CategoryId { get; set; }
     
     [Required]
-    public Category Category { get; set; }
+    public Category Category { get; set; } = null!;
+
     
+    public Guid CreatedByUserId { get; set; }
     
-    public bool IsActive { get; set; } = true;
-    public bool IsDeleted { get; set; } = false;
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
-    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public User CreatedBy { get; set; } = null!;
+
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
 }
