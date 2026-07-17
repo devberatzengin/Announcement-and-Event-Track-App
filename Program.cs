@@ -10,8 +10,10 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using Microsoft.OpenApi;
 using Microsoft.AspNetCore.Identity;
+using Announcement_and_Event_Track_App.Helpers;
+using Microsoft.AspNetCore.OpenApi;
+using Scalar.AspNetCore;
 
 
 namespace Announcement_and_Event_Track_App;
@@ -28,27 +30,14 @@ public class Program
             .AddJsonOptions(options =>
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(c =>
+        builder.Services.AddOpenApi(options =>
         {
-            c.CustomSchemaIds(type => type.FullName);
-
-            c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = "bearer",
-                BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Sadece token'ı yapıştır (Bearer yazma)"
-            });
-
-            // ESKİ: new OpenApiSecurityScheme { Reference = new OpenApiReference {...} }
-            // YENİ: delegate alır, OpenApiSecuritySchemeReference kullanılır
-            c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
-            {
-                [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-            });
+            options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            
+            options.CreateSchemaReferenceId = typeInfo =>
+                OpenApiOptions.CreateDefaultSchemaReferenceId(typeInfo) is null
+                    ? null
+                    : typeInfo.Type.FullName!.Replace("+", ".");
         });
 
         
@@ -73,9 +62,6 @@ public class Program
 
     
         // JWT
-        
-        builder.Services.AddScoped<TokenService>();
-        
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -121,13 +107,19 @@ public class Program
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            app.MapOpenApi();               
+            app.MapScalarApiReference();    
         }
 
-        app.UseHttpsRedirection();
-        
         app.MapControllers();
+
+        // base admin oluşturma
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+            SeedData.EnsureAdmin(db, hasher, app.Configuration);
+        }
 
         app.Run();
     }
