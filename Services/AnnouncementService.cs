@@ -3,18 +3,25 @@ using Announcement_and_Event_Track_App.Dtos.Announcement;
 using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
 
 namespace Announcement_and_Event_Track_App.Services;
 
 public class AnnouncementService : IAnnouncementService
-{
+{           
     private readonly AppDbContext _dbContext;
     private readonly ILogger<AnnouncementService> _logger;
-    public AnnouncementService(AppDbContext dbContext, ILogger<AnnouncementService> logger)
+    private readonly IValidator<CreateRequest> _createValidator;
+    private readonly IValidator<UpdateRequest> _updateValidator;
+    
+    public AnnouncementService(AppDbContext dbContext, ILogger<AnnouncementService> logger, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
     {
         _logger = logger;
         _dbContext = dbContext;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
     
     public async Task<Response?> GetByIdAsync(Guid announcementId)
@@ -86,6 +93,11 @@ public class AnnouncementService : IAnnouncementService
 
     public async Task<Response> CreateAsync(CreateRequest request)
     {
+        
+        var validation = await _createValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary());
+        
         var nameCount =  _dbContext.Announcements
             .Count(a => a.Title == request.Title || a.Title.StartsWith(request.Title + " "));
         
@@ -139,6 +151,10 @@ public class AnnouncementService : IAnnouncementService
 
     public async Task<Response?> UpdateAsync(UpdateRequest request)
     {
+        var validation = await _updateValidator.ValidateAsync(request);
+        
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary());
 
         var announcement = await _dbContext.Announcements.FirstAsync(a => a.Id == request.Id);
         

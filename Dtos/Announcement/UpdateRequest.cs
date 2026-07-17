@@ -4,7 +4,9 @@ namespace Announcement_and_Event_Track_App.Dtos.Announcement;
 
 public class UpdateRequest
 {
-    public Guid Id { get; set; }
+    [Required]
+    public Guid Id { get; set;}
+    
     [Required, MinLength(5), MaxLength(100)]
     public string Title { get; set; } = string.Empty;
     
