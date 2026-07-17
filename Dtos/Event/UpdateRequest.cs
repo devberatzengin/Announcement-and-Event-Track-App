@@ -4,14 +4,14 @@ namespace Announcement_and_Event_Track_App.Dtos.Event;
 
 public class UpdateRequest
 {
-    [Required(ErrorMessage = "Event cant update witout id")]
+    [Required(ErrorMessage = "Event cant update without id")]
     public Guid Id { get; set; }
     
-    public string Name { get; set; }  = "Event Default Name";
+    public string Name { get; set; }  = string.Empty;
     
-    public string Description { get; set; } = "Event Description";
+    public string Description { get; set; } = string.Empty;
     
-    public string Location { get; set; } = "Event Location";
+    public string Location { get; set; } =  string.Empty;
     
     public DateTime StartDate { get; set; }
     

@@ -2,10 +2,12 @@ using System.Formats.Asn1;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Announcement_and_Event_Track_App.Dtos.Event;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Announcement_and_Event_Track_App.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class EventController : ControllerBase
 {
@@ -65,6 +67,7 @@ public class EventController : ControllerBase
     }
 
     [HttpDelete]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<bool>> Archive(Guid eventId)
     {
         var result = await _eventService.ArchiveAsync(eventId);

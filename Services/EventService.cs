@@ -4,6 +4,7 @@ using Announcement_and_Event_Track_App.Dtos.Event;
 using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
 
@@ -12,13 +13,22 @@ namespace Announcement_and_Event_Track_App.Services;
 public class EventService : IEventService
 {
     private readonly AppDbContext _dbContext;
-    public EventService(AppDbContext dbContext)
+    private readonly IValidator<CreateRequest> _createValidator;
+    private readonly IValidator<UpdateRequest> _updateValidator;
+    public EventService(AppDbContext dbContext, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
     {
         _dbContext = dbContext;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
     
     public async Task<Response> CreateAsync(CreateRequest createRequest)
     {
+        
+        var validation = await _createValidator.ValidateAsync(createRequest);
+        
+        if (!validation.IsValid)
+            throw new Excepitons.ValidationException(validation.ToDictionary());
         
         //JWT CHECK SONRA
         
@@ -135,6 +145,11 @@ public class EventService : IEventService
 
     public async Task<Response?> UpdateAsync(UpdateRequest request)
     {
+        var validation = await _updateValidator.ValidateAsync(request);
+        
+        if (!validation.IsValid)
+            throw new Excepitons.ValidationException(validation.ToDictionary());
+        
         var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == request.Id);
         
         if  (result is null)
