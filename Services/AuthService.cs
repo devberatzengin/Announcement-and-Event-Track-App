@@ -4,8 +4,11 @@ using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Entitys.Enums;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
+
 
 namespace Announcement_and_Event_Track_App.Services;
 
@@ -14,19 +17,29 @@ public class AuthService : IAuthService
     private readonly AppDbContext _dbContext;
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly TokenService _tokenService;
-    public AuthService(AppDbContext dbContext, IPasswordHasher<User> passwordHasher, TokenService tokenService)
+    private readonly IValidator<RegisterRequest> _registerValidator;
+    private readonly IValidator<LoginRequest> _loginValidator;
+
+    public AuthService(AppDbContext dbContext, TokenService tokenService, IPasswordHasher<User> passwordHasher, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator)
     {
-        _tokenService = tokenService;   
-        _passwordHasher = new PasswordHasher<User>();
+        _tokenService = tokenService;
+        _passwordHasher = passwordHasher;
         _dbContext = dbContext;
+        _registerValidator = registerValidator;
+        _loginValidator = loginValidator;
     }
     
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
+        var validation = await _registerValidator.ValidateAsync(request);
+        
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary());
+        
         bool emailExists = await _dbContext.Users.AnyAsync(u => u.Email == request.Email);
         
         if (emailExists)
-            throw new Exception("User with the same email already exists");
+            throw new ConflictException("Email already exists");
 
         var user = new User()
         {
@@ -54,6 +67,12 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
+        
+        var validation  = await _loginValidator.ValidateAsync(request);
+        
+        if (!validation.IsValid)
+            throw new ValidationException(validation.ToDictionary()); 
+                
         var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (dbUser is null)

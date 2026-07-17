@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Handlers;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
@@ -65,6 +66,10 @@ public class Program
         builder.Services.AddScoped<IUserService, UserService>();
 
 
+        // fluent Validation
+        builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+        
 
     
         // JWT
