@@ -1,6 +1,8 @@
 using Announcement_and_Event_Track_App.Data;
 using Announcement_and_Event_Track_App.Dtos.Announcement;
+using Announcement_and_Event_Track_App.Dtos.Common;
 using Announcement_and_Event_Track_App.Entitys;
+using Announcement_and_Event_Track_App.Entitys.Enums;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using FluentValidation;
@@ -10,7 +12,7 @@ using ValidationException = Announcement_and_Event_Track_App.Excepitons.Validati
 namespace Announcement_and_Event_Track_App.Services;
 
 public class AnnouncementService : IAnnouncementService
-{           
+{
     private readonly AppDbContext _dbContext;
     private readonly ILogger<AnnouncementService> _logger;
     private readonly IValidator<CreateRequest> _createValidator;
@@ -24,64 +26,86 @@ public class AnnouncementService : IAnnouncementService
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
-    
-    
-    public async Task<Response?> GetByIdAsync(Guid announcementId)
+
+    public async Task<Response?> GetByIdAsync(Guid announcementId, bool isAdmin)
     {
         var result = await _dbContext.Announcements
             .Include(a => a.Category)
             .Include(a => a.CreatedBy)
-            .Where(a => a.Id == announcementId)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(a => a.Id == announcementId);
 
         if (result is null)
             throw new NotFoundException(nameof(Announcement), announcementId);
-        
-        return new Response()
-        {
-            Id = result.Id,
-            Title = result.Title,
-            Content = result.Content,
-            CreatedByName = result.CreatedBy.FirstName + " " + result.CreatedBy.LastName,
-            CategoryId = result.CategoryId,
-            CategoryName = result.Category.Name, 
-            IsActive = result.IsActive,
-            CreatedAt = result.CreatedAt,
-            UpdatedAt = result.UpdatedAt
-        };
+
+        if (!isAdmin && result.Status != ContentStatus.Published)
+            throw new NotFoundException(nameof(Announcement), announcementId);
+
+        return ToResponse(result);
     }
-    
-    public async Task<List<Response>> GetAllAsync(bool includeUnactivated = false)
+
+    public async Task<PagedResponse<Response>> GetAllAsync(ListRequest request, bool isAdmin)
     {
-        var announcements = await _dbContext.Announcements
-            .Where(a => includeUnactivated || a.IsActive)
-            .Join(_dbContext.Users,
-                a => a.CreatedByUserId,
-                u => u.Id,
-                (a, u) => new Response
-                {
-                    Id = a.Id,
-                    Title = a.Title,
-                    Content = a.Content,
-                    CreatedByName = u.FirstName + " " + u.LastName,
-                    CategoryName = a.Category.Name,
-                    CategoryId = a.CategoryId,
-                    IsActive = a.IsActive,
-                    CreatedAt = a.CreatedAt,
-                    UpdatedAt = a.UpdatedAt
-                })
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
+        var query = _dbContext.Announcements.AsNoTracking().AsQueryable();
+
+        if (!isAdmin)
+            query = query.Where(a => a.Status == ContentStatus.Published);
+        else if (request.Status is not null)
+            query = query.Where(a => a.Status == request.Status);
+
+        if (request.CategoryId is not null)
+            query = query.Where(a => a.CategoryId == request.CategoryId);
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var pattern = $"%{request.Search.Trim()}%";
+            query = query.Where(a =>
+                EF.Functions.ILike(a.Title, pattern) ||
+                EF.Functions.ILike(a.Content, pattern));
+        }
+
+        if (request.CreatedFrom is not null)
+            query = query.Where(a => a.CreatedAt >= request.CreatedFrom);
+        if (request.CreatedTo is not null)
+            query = query.Where(a => a.CreatedAt <= request.CreatedTo);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(a => a.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => new Response
+            {
+                Id = a.Id,
+                Title = a.Title,
+                Content = a.Content,
+                CreatedByName = a.CreatedBy.FirstName + " " + a.CreatedBy.LastName,
+                CategoryName = a.Category.Name,
+                CategoryId = a.CategoryId,
+                Status = a.Status,
+                CreatedAt = a.CreatedAt,
+                UpdatedAt = a.UpdatedAt
+            })
             .ToListAsync();
 
-        _logger.LogInformation("Getting announcements {Count}", announcements.Count);
-        
-        return announcements;
+        _logger.LogInformation("Listed {Count}/{Total} announcements (page {Page})", items.Count, totalCount, page);
+
+        return new PagedResponse<Response>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<Response> CreateAsync(CreateRequest request, Guid currentUserId)
     {
-        
         var validation = await _createValidator.ValidateAsync(request);
-        
+
         if (!validation.IsValid)
             throw new ValidationException(validation.ToDictionary());
         
@@ -106,11 +130,9 @@ public class AnnouncementService : IAnnouncementService
             Title = title,
             Content = request.Content,
             CreatedByUserId = currentUserId,
-            
             CategoryId = request.CategoryId,
-            
-            IsActive = true,
-            IsDeleted = false,
+
+            Status = ContentStatus.Draft,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -129,9 +151,7 @@ public class AnnouncementService : IAnnouncementService
 
             CategoryName = category.Name,
             CategoryId = newAnnouncement.CategoryId,
-
-            IsActive = newAnnouncement.IsActive,
-
+            Status = newAnnouncement.Status,
             CreatedAt = newAnnouncement.CreatedAt,
             UpdatedAt = newAnnouncement.UpdatedAt
         };
@@ -147,14 +167,14 @@ public class AnnouncementService : IAnnouncementService
         if (!validation.IsValid)
             throw new ValidationException(validation.ToDictionary());
 
-        var announcement = await _dbContext.Announcements.FirstOrDefaultAsync(a => a.Id == request.Id);
-        
+        var announcement = await _dbContext.Announcements
+            .Include(a => a.Category)
+            .Include(a => a.CreatedBy)
+            .FirstOrDefaultAsync(a => a.Id == request.Id);
+
         if (announcement is null)
             throw new NotFoundException(nameof(Announcement), request.Id);
-        
-        if (announcement.CreatedByUserId != currentUserId)
-            throw new ForbiddenException("Sadece kendi duyurunu güncelleyebilirsin.");
-        
+
         var categoryExists = await _dbContext.Categories.AnyAsync(c => c.Id == request.CategoryId);
         if (!categoryExists)
             throw new NotFoundException(nameof(Category), request.CategoryId);
@@ -168,27 +188,17 @@ public class AnnouncementService : IAnnouncementService
         announcement.Title = title;
         announcement.Content = request.Content;
         announcement.CategoryId = request.CategoryId;
-        announcement.IsActive = request.IsActive;
         announcement.UpdatedAt = DateTime.UtcNow;
         
         await _dbContext.SaveChangesAsync();
         
         _logger.LogInformation("Updated announcement {AnnouncementId} with title {Title} by user {UserId}", announcement.Id, title, currentUserId);
 
-        
-        return new Response()
-        {
-            Id = announcement.Id,
-            Title = announcement.Title,
-            Content = announcement.Content,
-            CategoryId = announcement.CategoryId,
-            IsActive = announcement.IsActive
-        };
+        return ToResponse(announcement);
     }
     
     public async Task<Response?> PublishAsync(Guid announcementId, Guid currentUserId)
     {
-
         var announcement = await _dbContext.Announcements
             .Include(a => a.Category)
             .Include(a => a.CreatedBy)
@@ -196,29 +206,20 @@ public class AnnouncementService : IAnnouncementService
         
         if (announcement is null)
             throw new NotFoundException(nameof(Announcement), announcementId);
-        
-        if (announcement.CreatedByUserId != currentUserId)
-            throw new ForbiddenException("Sadece kendi duyurunu yayınlayabilirsin.");
-        
-        announcement.IsActive = true;
+
+        if (announcement.Status == ContentStatus.Published)
+            throw new ConflictException("Duyuru zaten yayında.");
+        if (announcement.Status == ContentStatus.Archived)
+            throw new ConflictException("Arşivlenmiş duyuru yayına alınamaz.");
+
+        announcement.Status = ContentStatus.Published;
         announcement.UpdatedAt = DateTime.UtcNow;
         
         await _dbContext.SaveChangesAsync();
         
         _logger.LogInformation("Published announcement {AnnouncementId} by user {UserId}", announcement.Id, currentUserId);
 
-        return new Response()
-        {
-            Id = announcement.Id,
-            Title = announcement.Title,
-            Content = announcement.Content,
-            CreatedByName =  announcement.CreatedBy.FirstName + " " + announcement.CreatedBy.LastName,
-            CategoryName = announcement.Category.Name,
-            CategoryId = announcement.CategoryId,
-            IsActive = announcement.IsActive,
-            CreatedAt = announcement.CreatedAt,
-            UpdatedAt = announcement.UpdatedAt
-        };
+        return ToResponse(announcement);
     }
 
     public async Task<Response?> UnpublishAsync(Guid announcementId, Guid currentUserId)
@@ -230,50 +231,47 @@ public class AnnouncementService : IAnnouncementService
         
         if (announcement is null)
             throw new NotFoundException(nameof(Announcement), announcementId);
-        
-        if (announcement.CreatedByUserId != currentUserId)
-            throw new ForbiddenException("Sadece kendi duyurunu yayından kaldırabilirsin.");
-        
-        announcement.IsActive = false;
+
+        if (announcement.Status != ContentStatus.Published)
+            throw new ConflictException("Yayında olmayan duyuru yayından kaldırılamaz.");
+
+        announcement.Status = ContentStatus.Passive;
         announcement.UpdatedAt = DateTime.UtcNow;
         
         await _dbContext.SaveChangesAsync();
         
         _logger.LogInformation("Unpublished announcement {AnnouncementId} by user {UserId}", announcement.Id, currentUserId);
 
-        
-        return new Response()
-        {
-            Id = announcement.Id,
-            Title = announcement.Title,
-            Content = announcement.Content,
-            CreatedByName =  announcement.CreatedBy.FirstName + " " + announcement.CreatedBy.LastName,
-            CategoryName = announcement.Category.Name,
-            CategoryId = announcement.CategoryId,
-            IsActive = announcement.IsActive,
-            CreatedAt = announcement.CreatedAt,
-            UpdatedAt = announcement.UpdatedAt
-        };
+        return ToResponse(announcement);
     }
 
-    // Delete Method
     public async Task<bool> ArchiveAsync(Guid announcementId, Guid currentUserId)
-      {
-          var announcement = await _dbContext.Announcements.FirstOrDefaultAsync(a => a.Id == announcementId);
-          
-          if (announcement is null)
-              throw new NotFoundException(nameof(Announcement), announcementId);
-          
-          if (announcement.CreatedByUserId != currentUserId)
-              throw new ForbiddenException("Sadece kendi duyurunu arşivleyebilirsin.");
-          
-          announcement.IsDeleted = true;
-          announcement.UpdatedAt = DateTime.UtcNow;
-          
-          await _dbContext.SaveChangesAsync();
-          
-          _logger.LogInformation("Archived announcement {AnnouncementId} by user {UserId}", announcement.Id, currentUserId);
-          
-          return true;
-      }
+    {
+        var announcement = await _dbContext.Announcements.FirstOrDefaultAsync(a => a.Id == announcementId);
+
+        if (announcement is null)
+            throw new NotFoundException(nameof(Announcement), announcementId);
+
+        announcement.Status = ContentStatus.Archived;
+        announcement.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Archived announcement {AnnouncementId} by user {UserId}", announcement.Id, currentUserId);
+
+        return true;
+    }
+
+    private static Response ToResponse(Announcement a) => new()
+    {
+        Id = a.Id,
+        Title = a.Title,
+        Content = a.Content,
+        CreatedByName = a.CreatedBy.FirstName + " " + a.CreatedBy.LastName,
+        CategoryName = a.Category.Name,
+        CategoryId = a.CategoryId,
+        Status = a.Status,
+        CreatedAt = a.CreatedAt,
+        UpdatedAt = a.UpdatedAt
+    };
 }
