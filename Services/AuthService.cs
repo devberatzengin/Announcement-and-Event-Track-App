@@ -45,11 +45,13 @@ public class AuthService : IAuthService
 
         var user = new User()
         {
+            Username = request.Username, // BUGFIX: username hiç atanmıyordu, boş kaydediliyordu
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
             Type = UserType.User,
-            CreatedAt =  DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
             IsActive = true,
             IsDeleted = false,
         };
@@ -92,6 +94,13 @@ public class AuthService : IAuthService
             _logger.LogWarning("Login failed for user {UserId}: wrong password", dbUser.Id);
             throw new UnauthorizedException("Email or Password incorrect");
         }
+
+        if (!dbUser.IsActive || dbUser.IsDeleted)
+        {
+            _logger.LogWarning("Login blocked for user {UserId}: inactive or deleted", dbUser.Id);
+            throw new UnauthorizedException("Email or Password incorrect");
+        }
+        
 
         _logger.LogInformation("User {UserId} logged in", dbUser.Id);
 
