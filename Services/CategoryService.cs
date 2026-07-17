@@ -15,10 +15,10 @@ public class CategoryService : ICategoryService
 {
     
     private readonly AppDbContext _dbContext;
-    private readonly ILogger<AnnouncementService> _logger;
+    private readonly ILogger<CategoryService> _logger;
     private readonly IValidator<CreateRequest> _createValidator;
     private readonly IValidator<UpdateRequest> _updateValidator;
-    public CategoryService(AppDbContext dbContext, ILogger<AnnouncementService> logger, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
+    public CategoryService(AppDbContext dbContext, ILogger<CategoryService> logger, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
     {
         _dbContext = dbContext;
         _logger = logger;
@@ -56,12 +56,8 @@ public class CategoryService : ICategoryService
         _dbContext.Categories.Add(newCategory);
         await _dbContext.SaveChangesAsync();
         
-        _logger.LogInformation("Category created {@newCategory.id}", newCategory.Id);
-        // _logger.LogCritical("Category created {newCategory.id}", newCategory.Id);
-        // _logger.LogDebug("Category created {newCategory.id}", newCategory.Id);
-        // _logger.LogError("Category created {newCategory.id}", newCategory.Id);
-        // _logger.LogTrace("Category created {newCategory.id}", newCategory.Id);
-        // _logger.LogWarning("Category created {newCategory.id}", newCategory.Id);
+        _logger.LogInformation("Created category {CategoryId} with name {Name}", newCategory.Id, newCategory.Name);
+
         return new Response
         {
             Id = newCategory.Id,
@@ -77,10 +73,7 @@ public class CategoryService : ICategoryService
         var categories =  await _dbContext.Categories
             .Where(c => includeUnactivated || c.IsActive)
             .ToListAsync();
-        
-        if (categories is null)
-            throw new NotFoundException(nameof(Category), "");
-        
+
         var responses = new List<Response>();
         foreach (var category in categories)
         {
@@ -130,17 +123,19 @@ public class CategoryService : ICategoryService
         if (category is null)
             throw new NotFoundException(nameof(Category), updateRequest.Id);
         
-        bool nameExist = await _dbContext.Categories.AnyAsync(c => c.Name == updateRequest.Name);
-        
+        bool nameExist = await _dbContext.Categories.AnyAsync(c => c.Id != updateRequest.Id && c.Name == updateRequest.Name);
+
         if (nameExist)
             throw new ConflictException($"'{updateRequest.Name}' adında kategori zaten var.");
-        
+
         category.Name = updateRequest.Name;
         category.Type = updateRequest.Type;
         category.IsActive = updateRequest.IsActive;
         category.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Updated category {CategoryId}", category.Id);
 
         return new Response()
         {
@@ -160,9 +155,11 @@ public class CategoryService : ICategoryService
         
         category.IsActive = false;
         category.UpdatedAt = DateTime.UtcNow;
-        
+
         await _dbContext.SaveChangesAsync();
-        
+
+        _logger.LogInformation("Deactivated category {CategoryId}", category.Id);
+
         return new Response()
         {
             Id = category.Id,
@@ -183,7 +180,9 @@ public class CategoryService : ICategoryService
         category.IsDeleted = true;
         category.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
-        
+
+        _logger.LogInformation("Deleted category {CategoryId}", category.Id);
+
         return true;
     }
 }

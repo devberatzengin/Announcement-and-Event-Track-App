@@ -1,12 +1,17 @@
 using System.Formats.Asn1;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Announcement_and_Event_Track_App.Dtos.Announcement;
+using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Announcement_and_Event_Track_App.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]                                    
+
 public class AnnouncementController : ControllerBase
 {
     private readonly IAnnouncementService _announcementService;
@@ -33,7 +38,8 @@ public class AnnouncementController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Response>> Create(CreateRequest request)
     {
-        var reuslt = await _announcementService.CreateAsync(request);
+        
+        var reuslt = await _announcementService.CreateAsync(request, GetCurrentUserId());
         return CreatedAtAction(
             nameof(GetById),
             new { id = reuslt.Id },
@@ -54,7 +60,7 @@ public class AnnouncementController : ControllerBase
     public async Task<ActionResult<Response?>> Update(Guid id,UpdateRequest request)
     {
         request.Id = id; // burda ne yaptım bilmiyorum bi an mantığıma yatmadı
-        var result = await _announcementService.UpdateAsync(request);
+        var result = await _announcementService.UpdateAsync(request, GetCurrentUserId());
         return Ok(result);
     }
 
@@ -62,7 +68,7 @@ public class AnnouncementController : ControllerBase
     [HttpPatch("{id}/publish")]
     public async Task<ActionResult<Response?>> Publish(Guid id)
     {
-        var result = _announcementService.PublishAsync(id);
+        var result = _announcementService.PublishAsync(id, GetCurrentUserId());
         return Ok(result);
     }
 
@@ -70,15 +76,24 @@ public class AnnouncementController : ControllerBase
     [HttpPatch("{id}/unpublish")]
     public async Task<ActionResult<Response?>> Unpublish(Guid id)
     {
-        var result = await _announcementService.UnpublishAsync(id);
+        var result = await _announcementService.UnpublishAsync(id, GetCurrentUserId());
         return Ok(result);
     }
 
     [HttpPatch("{id}/archive")] // arşivleme silme gibi şuan elle açmadıkça arşivde duruyor şuan
     public async Task<ActionResult<bool>> Archive(Guid id)
     {
-        var result = await _announcementService.ArchiveAsync(id);
+        var result = await _announcementService.ArchiveAsync(id, GetCurrentUserId());
         return Ok(result);
+    }
+    
+    
+    
+    private Guid GetCurrentUserId()
+    {
+        var value = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? throw new UnauthorizedException("Token'da kullanıcı kimliği bulunamadı.");
+        return Guid.Parse(value);
     }
 
 }

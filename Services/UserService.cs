@@ -3,7 +3,6 @@ using Announcement_and_Event_Track_App.Dtos.User;
 using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
-using Announcement_and_Event_Track_App.Validators.UserValidator;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
@@ -13,10 +12,12 @@ namespace Announcement_and_Event_Track_App.Services;
 public class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<UserService> _logger;
     private readonly IValidator<UpdateRequest> _validator;
-    public UserService(AppDbContext dbContext, IValidator<UpdateRequest> validator)
+    public UserService(AppDbContext dbContext, ILogger<UserService> logger, IValidator<UpdateRequest> validator)
     {
         _dbContext = dbContext;
+        _logger = logger;
         _validator = validator;
     }
     
@@ -74,9 +75,11 @@ public class UserService : IUserService
         
         dbUser.FirstName = request.FirstName;
         dbUser.LastName = request.LastName;
-        
-        _dbContext.Users.Update(dbUser);
+
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Updated user {UserId}", dbUser.Id);
+
         return new UserResponse()
         {
             Id = dbUser.Id,
@@ -100,8 +103,8 @@ public class UserService : IUserService
          
          dbUser.IsActive = false;
          await _dbContext.SaveChangesAsync();
-         
-        
+
+         _logger.LogInformation("Deactivated user {UserId}", dbUser.Id);
     }
 
     public async Task DeleteAsync(Guid id)
@@ -113,5 +116,7 @@ public class UserService : IUserService
         
         dbUser.IsDeleted = true;
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Deleted user {UserId}", dbUser.Id);
     }
 }

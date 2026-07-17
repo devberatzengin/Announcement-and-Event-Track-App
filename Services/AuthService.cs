@@ -19,12 +19,14 @@ public class AuthService : IAuthService
     private readonly TokenService _tokenService;
     private readonly IValidator<RegisterRequest> _registerValidator;
     private readonly IValidator<LoginRequest> _loginValidator;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext dbContext, TokenService tokenService, IPasswordHasher<User> passwordHasher, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator)
+    public AuthService(AppDbContext dbContext, ILogger<AuthService> logger, TokenService tokenService, IPasswordHasher<User> passwordHasher, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator)
     {
         _tokenService = tokenService;
         _passwordHasher = passwordHasher;
         _dbContext = dbContext;
+        _logger = logger;
         _registerValidator = registerValidator;
         _loginValidator = loginValidator;
     }
@@ -56,6 +58,8 @@ public class AuthService : IAuthService
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
 
+        _logger.LogInformation("Registered user {UserId}", user.Id);
+
         return new AuthResponse()
         {
             Email = user.Email,
@@ -76,14 +80,20 @@ public class AuthService : IAuthService
         var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (dbUser is null)
+        {
+            _logger.LogWarning("Login failed for {Email}: user not found", request.Email);
             throw new UnauthorizedException("Email or Password incorrect");
+        }
 
         var result = _passwordHasher.VerifyHashedPassword(dbUser, dbUser.PasswordHash, request.Password);
 
         if (result == PasswordVerificationResult.Failed)
         {
+            _logger.LogWarning("Login failed for user {UserId}: wrong password", dbUser.Id);
             throw new UnauthorizedException("Email or Password incorrect");
         }
+
+        _logger.LogInformation("User {UserId} logged in", dbUser.Id);
 
         return new AuthResponse()
         {

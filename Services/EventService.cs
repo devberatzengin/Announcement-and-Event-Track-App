@@ -1,4 +1,3 @@
-using System.ComponentModel.Design;
 using Announcement_and_Event_Track_App.Data;
 using Announcement_and_Event_Track_App.Dtos.Event;
 using Announcement_and_Event_Track_App.Entitys;
@@ -6,48 +5,50 @@ using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
+using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
 
 namespace Announcement_and_Event_Track_App.Services;
 
 public class EventService : IEventService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<EventService> _logger;
     private readonly IValidator<CreateRequest> _createValidator;
     private readonly IValidator<UpdateRequest> _updateValidator;
-    public EventService(AppDbContext dbContext, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
+    public EventService(AppDbContext dbContext, ILogger<EventService> logger, IValidator<CreateRequest> createValidator, IValidator<UpdateRequest> updateValidator)
     {
         _dbContext = dbContext;
+        _logger = logger;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
-    
+
     public async Task<Response> CreateAsync(CreateRequest createRequest)
     {
-        
+
         var validation = await _createValidator.ValidateAsync(createRequest);
-        
+
         if (!validation.IsValid)
-            throw new Excepitons.ValidationException(validation.ToDictionary());
-        
+            throw new ValidationException(validation.ToDictionary());
+
         //JWT CHECK SONRA
-        
-        var nameCount =  _dbContext.Events
-            .Count(e => e.Name == createRequest.Name || e.Name.StartsWith(createRequest.Name + " "));
-        
+
+        var nameCount = await _dbContext.Events
+            .CountAsync(e => e.Name == createRequest.Name || e.Name.StartsWith(createRequest.Name + " "));
+
         var title = nameCount > 0 ? $"{createRequest.Name} {nameCount + 1}" : createRequest.Name;
-        
-        var categoryCheck = _dbContext.Categories.FirstOrDefault(c => c.Id == createRequest.CategoryId);
-        
-        if (categoryCheck is null)
+
+        var categoryExists = await _dbContext.Categories.AnyAsync(c => c.Id == createRequest.CategoryId);
+
+        if (!categoryExists)
             throw new NotFoundException(nameof(Category), createRequest.CategoryId);
 
-        if (createRequest.EndDate <= DateTime.Now)
-            throw new Excepitons.ValidationException("Bitiş tarihi geçmiş bir zaman olamaz.");
+        if (createRequest.EndDate <= DateTime.UtcNow)
+            throw new ValidationException("Bitiş tarihi geçmiş bir zaman olamaz.");
         if (createRequest.EndDate <= createRequest.StartDate)
-            throw new Excepitons.ValidationException("Başlangış bitişden sonra olamaz.");
+            throw new ValidationException("Bitiş tarihi başlangıçtan önce olamaz.");
 
-        
+
         Event newEvent = new Event()
         {
             Id = Guid.NewGuid(),
@@ -55,19 +56,20 @@ public class EventService : IEventService
             Description = createRequest.Description,
             Location = createRequest.Location,
             CategoryId = createRequest.CategoryId,
-            Category = categoryCheck,
-            StartDate = DateTime.Now,
-            EndDate = DateTime.Now,
-            
-            
+            StartDate = createRequest.StartDate,
+            EndDate = createRequest.EndDate,
+
+
             CreatedAt =  DateTime.UtcNow,
             UpdatedAt =  DateTime.UtcNow,
             IsActive = true,
             IsDeleted =  false
         };
-        
+
         _dbContext.Events.Add(newEvent);
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Created event {EventId} with name {Name}", newEvent.Id, newEvent.Name);
 
         return new Response()
         {
@@ -93,7 +95,7 @@ public class EventService : IEventService
         var events = await _dbContext.Events.Where(e => includeUnactivated || e.IsActive).ToListAsync();
 
         var response = new List<Response>();
-        
+
         foreach (var eventItem in events)
         {
             response.Add(new Response()
@@ -111,15 +113,15 @@ public class EventService : IEventService
                 UpdatedAt = eventItem.UpdatedAt
             });
         }
-        
+
         return response;
-        
+
     }
 
     public async Task<Response?> GetByIdAsync(Guid eventId)
     {
         var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
-        
+
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
 
@@ -146,16 +148,15 @@ public class EventService : IEventService
     public async Task<Response?> UpdateAsync(UpdateRequest request)
     {
         var validation = await _updateValidator.ValidateAsync(request);
-        
+
         if (!validation.IsValid)
-            throw new Excepitons.ValidationException(validation.ToDictionary());
-        
+            throw new ValidationException(validation.ToDictionary());
+
         var result =  await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == request.Id);
-        
+
         if  (result is null)
             throw new NotFoundException(nameof(Event), request.Id);
-        
-        // Burda bir mantık hatası var hepsini elle böyle  böyle nereye kadar mantıken bir yolu vardır da
+
         result.Name = request.Name;
         result.Description = request.Description;
         result.Location = request.Location;
@@ -163,11 +164,11 @@ public class EventService : IEventService
         result.EndDate = request.EndDate;
         result.CategoryId = request.CategoryId;
         result.IsActive = request.IsActive;
-        result.IsDeleted = request.IsDeleted;
         result.UpdatedAt = DateTime.UtcNow;
-        
-        _dbContext.Events.Update(result);
+
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Updated event {EventId}", result.Id);
 
         return new Response()
         {
@@ -191,14 +192,15 @@ public class EventService : IEventService
 
     public async Task<Response?> PublishAsync(Guid eventId)
     {
-        var result =  _dbContext.Events.FirstOrDefault(e => e.Id == eventId);
+        var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
-        
+
         result.IsActive = true;
         result.UpdatedAt = DateTime.UtcNow;
-        _dbContext.Events.Update(result);
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Published event {EventId}", result.Id);
 
         return new Response()
         {
@@ -221,15 +223,16 @@ public class EventService : IEventService
 
     public async Task<Response?> UnpublishAsync(Guid eventId)
     {
-        var result =  _dbContext.Events.FirstOrDefault(e => e.Id == eventId);
-        
+        var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
-        
+
         result.IsActive = false;
         result.UpdatedAt = DateTime.UtcNow;
-        _dbContext.Events.Update(result);
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Unpublished event {EventId}", result.Id);
 
         return new Response()
         {
@@ -252,17 +255,18 @@ public class EventService : IEventService
 
     public async Task<bool> ArchiveAsync(Guid eventId)
     {
-        var result =  _dbContext.Events.FirstOrDefault(e => e.Id == eventId);
-        
+        var result = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+
         if (result is null)
             throw new NotFoundException(nameof(Event), eventId);
-        
+
         result.IsDeleted = true;
         result.UpdatedAt = DateTime.UtcNow;
-        _dbContext.Events.Update(result);
         await _dbContext.SaveChangesAsync();
-        
+
+        _logger.LogInformation("Archived event {EventId}", result.Id);
+
         return true;
-        
+
     }
 }
