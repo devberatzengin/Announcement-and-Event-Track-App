@@ -82,6 +82,7 @@ public class AnnouncementService : IAnnouncementService
                 Id = a.Id,
                 Title = a.Title,
                 Content = a.Content,
+                CreatedByUserId = a.CreatedByUserId,
                 CreatedByName = a.CreatedBy.FirstName + " " + a.CreatedBy.LastName,
                 CategoryName = a.Category.Name,
                 CategoryId = a.CategoryId,
@@ -147,6 +148,7 @@ public class AnnouncementService : IAnnouncementService
             Id = newAnnouncement.Id,
             Title = newAnnouncement.Title,
             Content = newAnnouncement.Content,
+            CreatedByUserId = newAnnouncement.CreatedByUserId,
             CreatedByName = creator.FirstName + " " + creator.LastName,
 
             CategoryName = category.Name,
@@ -177,18 +179,9 @@ public class AnnouncementService : IAnnouncementService
         
         
         
-        Console.WriteLine($"Duyuru Sahibi: {announcement.CreatedByUserId}");
-        Console.WriteLine($"Giriş Yapan: {currentUserId}");
-        Console.WriteLine($"Admin mi?: {isAdmin}");
-        
-        if (!isAdmin) 
-        {
-            // Admin değilse, duyurunun sahibi olup olmadığına bakar
-            if (announcement.CreatedByUserId != currentUserId)
-            {
-                throw new ConflictException("Yetkin yok");
-            }
-        }
+        // Admin değilse yalnızca kendi duyurusunu düzenleyebilir
+        if (!isAdmin && announcement.CreatedByUserId != currentUserId)
+            throw new ForbiddenException("Bu duyuruyu düzenleme yetkiniz yok.");
         
         var categoryExists = await _dbContext.Categories.AnyAsync(c => c.Id == request.CategoryId);
         if (!categoryExists)
@@ -282,6 +275,7 @@ public class AnnouncementService : IAnnouncementService
         Id = a.Id,
         Title = a.Title,
         Content = a.Content,
+        CreatedByUserId = a.CreatedByUserId,
         CreatedByName = a.CreatedBy.FirstName + " " + a.CreatedBy.LastName,
         CategoryName = a.Category.Name,
         CategoryId = a.CategoryId,
