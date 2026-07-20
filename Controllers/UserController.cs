@@ -58,6 +58,14 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
+    [HttpPatch("{id:guid}/activate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Activate(Guid id)
+    {
+        await _userService.ActivateAsync(id);
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)

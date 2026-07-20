@@ -32,6 +32,7 @@ public class UserService : IUserService
                 LastName = u.LastName,
                 Email = u.Email,
                 Type = u.Type,
+                IsActive = u.IsActive,
                 CreatedAt =  u.CreatedAt
             })
             .ToListAsync();
@@ -52,6 +53,7 @@ public class UserService : IUserService
             FirstName = result.FirstName,
             LastName = result.LastName,
             Type = result.Type,
+            IsActive = result.IsActive,
             CreatedAt = result.CreatedAt
         };
     }
@@ -90,6 +92,7 @@ public class UserService : IUserService
             LastName = dbUser.LastName,
 
             Type = dbUser.Type,
+            IsActive = dbUser.IsActive,
             CreatedAt = dbUser.CreatedAt
         };
 
@@ -105,6 +108,18 @@ public class UserService : IUserService
          await _dbContext.SaveChangesAsync();
 
          _logger.LogInformation("Deactivated user {UserId}", dbUser.Id);
+    }
+
+    public async Task ActivateAsync(Guid id) 
+    {
+         var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+         if (dbUser is null)
+             throw new NotFoundException(nameof(User), id);
+
+         dbUser.IsActive = true;
+         await _dbContext.SaveChangesAsync();
+
+         _logger.LogInformation("Activated user {UserId}", dbUser.Id);
     }
 
     public async Task DeleteAsync(Guid id)
