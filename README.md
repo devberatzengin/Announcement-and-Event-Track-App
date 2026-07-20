@@ -1,5 +1,16 @@
 # Kurumsal Duyuru ve Etkinlik Yönetim Sistemi
 
+![.NET](https://img.shields.io/badge/.NET%2010-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![EF Core](https://img.shields.io/badge/EF%20Core%2010-68217A?style=for-the-badge&logo=dotnet&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+![React](https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite%208-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+
 Kurum içi duyuru ve etkinliklerin yönetildiği full-stack bir uygulama: **ASP.NET Core Web API** (backend) + **React** (frontend). Yetkili (Admin) kullanıcılar duyuru ve etkinlik oluşturur, yayınlar, arşivler ve kategorilere ayırır; standart kullanıcılar yayınlanmış içerikleri görüntüler, kendi duyurularını taslak olarak oluşturabilir.
 
 ## İçindekiler
