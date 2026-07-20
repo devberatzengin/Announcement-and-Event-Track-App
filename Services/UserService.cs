@@ -4,6 +4,7 @@ using Announcement_and_Event_Track_App.Entitys;
 using Announcement_and_Event_Track_App.Excepitons;
 using Announcement_and_Event_Track_App.Services.Interfaces;
 using FluentValidation;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ValidationException = Announcement_and_Event_Track_App.Excepitons.ValidationException;
 
@@ -14,11 +15,14 @@ public class UserService : IUserService
     private readonly AppDbContext _dbContext;
     private readonly ILogger<UserService> _logger;
     private readonly IValidator<UpdateRequest> _validator;
-    public UserService(AppDbContext dbContext, ILogger<UserService> logger, IValidator<UpdateRequest> validator)
+    private readonly IPasswordHasher<User> _passwordHasher;
+
+    public UserService(AppDbContext dbContext, ILogger<UserService> logger, IValidator<UpdateRequest> validator, IPasswordHasher<User> passwordHasher)
     {
         _dbContext = dbContext;
         _logger = logger;
         _validator = validator;
+        _passwordHasher = passwordHasher;
     }
     
     public async Task<List<UserResponse>> GetAllAsync()
@@ -30,6 +34,7 @@ public class UserService : IUserService
                 UserName =  u.Username,
                 FirstName = u.FirstName,
                 LastName = u.LastName,
+                PhoneNumber = u.PhoneNumber,
                 Email = u.Email,
                 Type = u.Type,
                 IsActive = u.IsActive,
@@ -53,6 +58,7 @@ public class UserService : IUserService
             FirstName = result.FirstName,
             LastName = result.LastName,
             Type = result.Type,
+            PhoneNumber = result.PhoneNumber,
             IsActive = result.IsActive,
             CreatedAt = result.CreatedAt
         };
@@ -77,6 +83,8 @@ public class UserService : IUserService
         
         dbUser.FirstName = request.FirstName;
         dbUser.LastName = request.LastName;
+        dbUser.PhoneNumber = request.PhoneNumber;
+        dbUser.Email = request.Email;
 
         await _dbContext.SaveChangesAsync();
 
@@ -90,6 +98,7 @@ public class UserService : IUserService
 
             FirstName = dbUser.FirstName,
             LastName = dbUser.LastName,
+            PhoneNumber = dbUser.PhoneNumber,
 
             Type = dbUser.Type,
             IsActive = dbUser.IsActive,
@@ -134,4 +143,28 @@ public class UserService : IUserService
 
         _logger.LogInformation("Deleted user {UserId}", dbUser.Id);
     }
+
+    public async Task ChangePasswordAsync(Guid id, ChangePasswordRequest request)
+    {
+        var dbUser= await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        
+        if (dbUser is null)
+            throw new NotFoundException(nameof(User), id);
+        
+        var result = _passwordHasher.VerifyHashedPassword(dbUser, dbUser.PasswordHash, request.CurrentPassword);
+
+        if (result == PasswordVerificationResult.Failed)
+        {
+            throw new ConflictException("Mevcut şifre hatalı.");
+        }
+        
+        dbUser.PasswordHash = _passwordHasher.HashPassword(dbUser, request.NewPassword);
+        dbUser.UpdatedAt = DateTime.UtcNow;
+        
+        await _dbContext.SaveChangesAsync();
+        
+        _logger.LogInformation("Password changed {UserId}", dbUser.Id);
+        
+    }
+    
 }

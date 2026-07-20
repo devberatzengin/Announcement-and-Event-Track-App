@@ -73,6 +73,13 @@ public class UsersController : ControllerBase
         await _userService.DeleteAsync(id);
         return NoContent();
     }
+    
+    [HttpPost("me/change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        await _userService.ChangePasswordAsync(GetCurrentUserId(), request);
+        return NoContent();
+    }
 
     private Guid GetCurrentUserId()
     {

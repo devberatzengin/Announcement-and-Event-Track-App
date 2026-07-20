@@ -10,4 +10,5 @@ public interface IUserService
     Task DeactivateAsync(Guid id); 
     Task ActivateAsync(Guid id);
     Task DeleteAsync(Guid id);
+    Task ChangePasswordAsync(Guid id, ChangePasswordRequest request);
 }

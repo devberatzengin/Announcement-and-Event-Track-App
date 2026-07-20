@@ -7,6 +7,7 @@ public class UpdateRequestValidator : AbstractValidator<UpdateRequest>
 {
     public UpdateRequestValidator()
     {
-        RuleFor(x => x.FirstName).NotEmpty().WithMessage("First name is required");
+        RuleFor(x => x.PhoneNumber)
+            .Matches(@"^\+?\d{10,15}$").When(x => !string.IsNullOrEmpty(x.PhoneNumber));
     }
 }
