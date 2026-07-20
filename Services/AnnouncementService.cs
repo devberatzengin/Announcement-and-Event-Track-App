@@ -43,7 +43,7 @@ public class AnnouncementService : IAnnouncementService
         return ToResponse(result);
     }
 
-    public async Task<PagedResponse<Response>> GetAllAsync(ListRequest request, bool isAdmin)
+    public async Task<PagedResponse<Response>> GetAllAsync(ListRequest request, bool isAdmin, CancellationToken cancellationToken = default)
     {
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
@@ -71,7 +71,11 @@ public class AnnouncementService : IAnnouncementService
         if (request.CreatedTo is not null)
             query = query.Where(a => a.CreatedAt <= request.CreatedTo);
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        // 499 Exception Test code
+        // await Task.Delay(5000, cancellationToken);  // 15 saniye bekle
+        
 
         var items = await query
             .OrderByDescending(a => a.CreatedAt)
@@ -90,7 +94,7 @@ public class AnnouncementService : IAnnouncementService
                 CreatedAt = a.CreatedAt,
                 UpdatedAt = a.UpdatedAt
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         _logger.LogInformation("Listed {Count}/{Total} announcements (page {Page})", items.Count, totalCount, page);
 

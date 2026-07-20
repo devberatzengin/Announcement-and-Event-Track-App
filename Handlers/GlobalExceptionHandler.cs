@@ -24,6 +24,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             UnauthorizedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
             ForbiddenException    => (StatusCodes.Status403Forbidden, "Forbidden"),
             ConflictException     => (StatusCodes.Status409Conflict, "Conflict"),
+            OperationCanceledException => (StatusCodes.Status499ClientClosedRequest, "Operation canceled"),
             _                     => (StatusCodes.Status500InternalServerError, "Server Error")
         };
 

@@ -24,9 +24,9 @@ public class AnnouncementController : ControllerBase
     
     // List All Announcement
     [HttpGet]
-    public async Task<ActionResult<PagedResponse<Response>>> GetAll([FromQuery] ListRequest request)
+    public async Task<ActionResult<PagedResponse<Response>>> GetAll([FromQuery] ListRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await _announcementService.GetAllAsync(request, IsAdmin());
+        var result = await _announcementService.GetAllAsync(request, IsAdmin(), cancellationToken);
         return Ok(result);
     }
 
