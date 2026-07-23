@@ -182,3 +182,9 @@ export const SearchIcon = (p: IconProps) => (
 export const CheckIcon = (p: IconProps) => (
   <svg {...base(p)}><path d="M4 12.5 9.5 18 20 6.5" /></svg>
 );
+export const ChevronLeftIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M15 19l-7-7 7-7" /></svg>
+);
+export const ChevronRightIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M9 19l7-7-7-7" /></svg>
+);

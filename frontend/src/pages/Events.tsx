@@ -4,6 +4,7 @@ import { getEventParticipants, joinEvent, leaveEvent } from '../api/participants
 import { getCategories } from '../api/categories';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from '../components/Toast';
+import EventsCalendar from '../components/EventsCalendar';
 import type { EventResponse, CategoryResponse, EventParticipantsResponse } from '../types';
 import {
   Badge, StatusBadge, Modal, EmptyState, inputCls, labelCls, btnPrimaryCls, btnGhostCls, cardCls,
@@ -42,6 +43,8 @@ export default function Events() {
   const [rsvp, setRsvp] = useState<Record<string, EventParticipantsResponse>>({});
   const [rsvpReady, setRsvpReady] = useState(true); // backend endpoint'i yoksa RSVP UI gizlenir
   const [participantsOf, setParticipantsOf] = useState<EventResponse | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null);
 
   const loadParticipants = async (list: EventResponse[]) => {
     try {
@@ -154,7 +157,7 @@ export default function Events() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Etkinlikler</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Tüm etkinlikleri yönetin</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
             <input
@@ -164,6 +167,33 @@ export default function Events() {
               className={`${inputCls} pl-9 w-56`}
             />
           </div>
+
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+              }`}
+              title="Liste görünümü"
+            >
+              📋 Liste
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                viewMode === 'calendar'
+                  ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+              }`}
+              title="Takvim görünümü"
+            >
+              📅 Takvim
+            </button>
+          </div>
+
         {isAdmin && (
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
@@ -265,16 +295,156 @@ export default function Events() {
         </Modal>
       )}
 
-      {events.length === 0 ? (
-        <EmptyState
-          icon={debouncedSearch ? <SearchIcon className="w-6 h-6" /> : <CalendarIcon className="w-6 h-6" />}
-          message={debouncedSearch ? `"${debouncedSearch}" için sonuç bulunamadı` : 'Henüz etkinlik yok'}
-          actionLabel={!debouncedSearch && isAdmin ? 'İlk etkinliği oluşturun' : undefined}
-          onAction={!debouncedSearch && isAdmin ? openCreate : undefined}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {events.map((event) => (
+      {selectedEvent && (
+        <Modal title={selectedEvent.name} onClose={() => setSelectedEvent(null)}>
+          <div className="space-y-4">
+            {/* Status Badge */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Durum:</span>
+              <StatusBadge status={selectedEvent.status} />
+            </div>
+
+            {/* Description */}
+            {selectedEvent.description && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Açıklama</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4">{selectedEvent.description}</p>
+              </div>
+            )}
+
+            {/* Category */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Kategori:</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{categoryName(selectedEvent.categoryId)}</span>
+            </div>
+
+            {/* Location */}
+            {selectedEvent.location && (
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Konum:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white text-right">{selectedEvent.location}</span>
+              </div>
+            )}
+
+            {/* Dates */}
+            <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Başlangıç:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(selectedEvent.startDate)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Bitiş:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(selectedEvent.endDate)}</span>
+              </div>
+            </div>
+
+            {/* Participants Count */}
+            {rsvpReady && (
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Katılımcılar:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{rsvp[selectedEvent.id]?.count ?? 0} kişi</span>
+              </div>
+            )}
+
+            {/* Last Update */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+              <span className="text-xs text-gray-500 dark:text-gray-500">Son güncelleme:</span>
+              <span className="text-xs text-gray-500 dark:text-gray-500">
+                {new Date(selectedEvent.updatedAt || selectedEvent.createdAt).toLocaleDateString('tr-TR', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-4">
+              {selectedEvent.status === 'Published' && rsvpReady && (
+                <button
+                  onClick={() => {
+                    toggleJoin(selectedEvent);
+                    setSelectedEvent(null);
+                  }}
+                  className={
+                    rsvp[selectedEvent.id]?.isJoined
+                      ? 'flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20 hover:bg-red-50 hover:text-red-600 hover:ring-red-600/20 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors'
+                      : 'flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors'
+                  }
+                >
+                  {rsvp[selectedEvent.id]?.isJoined ? (
+                    <><CheckIcon className="w-4 h-4" /> Katılıyorsun</>
+                  ) : (
+                    <>Katıl</>
+                  )}
+                </button>
+              )}
+
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => {
+                      openEdit(selectedEvent);
+                      setSelectedEvent(null);
+                    }}
+                    className={`flex-1 ${btnPrimaryCls}`}
+                  >
+                    <PencilIcon className="w-4 h-4" /> Düzenle
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDelete(selectedEvent.id);
+                      setSelectedEvent(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Calendar View */}
+      {viewMode === 'calendar' && (
+        <div>
+          {events.length === 0 ? (
+            <EmptyState
+              icon={<CalendarIcon className="w-6 h-6" />}
+              message="Henüz etkinlik yok"
+              actionLabel={isAdmin ? 'İlk etkinliği oluşturun' : undefined}
+              onAction={isAdmin ? openCreate : undefined}
+            />
+          ) : (
+            <EventsCalendar
+              events={events}
+              categories={categories}
+              rsvp={rsvp}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <>
+          {events.length === 0 ? (
+            <EmptyState
+              icon={debouncedSearch ? <SearchIcon className="w-6 h-6" /> : <CalendarIcon className="w-6 h-6" />}
+              message={debouncedSearch ? `"${debouncedSearch}" için sonuç bulunamadı` : 'Henüz etkinlik yok'}
+              actionLabel={!debouncedSearch && isAdmin ? 'İlk etkinliği oluşturun' : undefined}
+              onAction={!debouncedSearch && isAdmin ? openCreate : undefined}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {events.map((event) => (
             <div
               key={event.id}
               className={`${cardCls} group p-5 flex flex-col transition-all hover:shadow-lg hover:shadow-gray-200/60 dark:hover:shadow-black/30 hover:-translate-y-0.5 ${
@@ -353,8 +523,10 @@ export default function Events() {
               </div>
               )}
             </div>
-          ))}
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
